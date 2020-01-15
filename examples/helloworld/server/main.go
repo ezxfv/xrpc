@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/net"
+	cli "github.com/urfave/cli/v2"
 
-	"github.com/urfave/cli/v2"
+	"github.com/edenzhong7/xrpc"
+	"github.com/edenzhong7/xrpc/pkg/net"
 
 	pb "github.com/edenzhong7/xrpc/protocol/greeter"
 )

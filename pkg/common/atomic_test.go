@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edenzhong7/xrpc/common"
+	"github.com/edenzhong7/xrpc/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 

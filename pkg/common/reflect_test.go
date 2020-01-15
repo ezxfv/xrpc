@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/edenzhong7/xrpc/common"
+	"github.com/edenzhong7/xrpc/pkg/common"
 	"github.com/edenzhong7/xrpc/protocol/greeter"
 	"github.com/stretchr/testify/assert"
 )

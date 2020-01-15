@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/edenzhong7/xrpc/net"
+	"github.com/edenzhong7/xrpc/pkg/net"
 
 	"github.com/edenzhong7/xrpc/middleware"
 	"github.com/edenzhong7/xrpc/pkg/transport"

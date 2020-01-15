@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/edenzhong7/xrpc/middleware"
-	"github.com/edenzhong7/xrpc/net"
+	"github.com/edenzhong7/xrpc/pkg/net"
 )
 
 type ClientConn struct {

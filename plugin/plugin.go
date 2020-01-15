@@ -5,7 +5,7 @@ import (
 	"errors"
 	"plugin"
 
-	"github.com/edenzhong7/xrpc/log"
+	"github.com/edenzhong7/xrpc/pkg/log"
 )
 
 type Plugin interface {
