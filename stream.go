@@ -1,7 +1,17 @@
 package xrpc
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+
+	"github.com/edenzhong7/xrpc/pkg/encoding"
+
+	"github.com/xtaci/smux"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -65,4 +75,122 @@ type ServerStream interface {
 	// SetTrailer sets the trailer metadata which will be sent with the RPC status.
 	// When called more than once, all the provided metadata will be merged.
 	SetTrailer(metadata.MD)
+}
+
+type clientStream struct {
+	stream *smux.Stream
+	header *streamHeader
+	codec  encoding.Codec
+	cp     encoding.Compressor
+}
+
+func (cs *clientStream) Context() context.Context {
+	panic("implement me")
+}
+
+func (cs *clientStream) SendMsg(m interface{}) error {
+	data, err := cs.codec.Marshal(m)
+	if err != nil {
+		return err
+	}
+	cbuf := &bytes.Buffer{}
+	z, err := cs.cp.Compress(cbuf)
+	if _, err = z.Write(data); err != nil {
+		return err
+	}
+	compData := cbuf.Bytes()
+	hdr, payload := msgHeader(data, compData)
+	if _, err = cs.stream.Write(hdr); err != nil {
+		return err
+	}
+	if _, err = cs.stream.Write(payload); err != nil {
+		return err
+	}
+	return nil
+}
+
+func recv(conn io.Reader) (pf payloadFormat, msg []byte, err error) {
+	header := make([]byte, headerLen, headerLen)
+	if _, err := conn.Read(header[:]); err != nil {
+		return 0, nil, err
+	}
+
+	pf = payloadFormat(header[0])
+	length := binary.BigEndian.Uint32(header[1:])
+
+	if length == 0 {
+		return pf, nil, nil
+	}
+	// TODO(bradfitz,zhaoq): garbage. reuse buffer after proto decoding instead
+	// of making it for each message:
+	msg = make([]byte, int(length))
+	if _, err := conn.Read(msg); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+		return 0, nil, err
+	}
+	return pf, msg, nil
+}
+
+func (cs *clientStream) RecvMsg(m interface{}) error {
+	pf, msg, err := recv(cs.stream)
+	if err != nil {
+		return err
+	}
+	var data []byte
+	if pf == compressionMade {
+		dc, _ := cs.cp.Decompress(bytes.NewReader(msg))
+		data, err = ioutil.ReadAll(dc)
+		if err != nil {
+			return err
+		}
+	} else {
+		data = msg
+	}
+	if err = cs.codec.Unmarshal(data, m); err != nil {
+		return errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
+	}
+	return nil
+}
+
+func (cs *clientStream) Header() (metadata.MD, error) {
+	panic("implement me")
+}
+
+func (cs *clientStream) Trailer() metadata.MD {
+	panic("implement me")
+}
+
+func (cs *clientStream) CloseSend() error {
+	panic("implement me")
+}
+
+type serverStream struct {
+	stream *smux.Stream
+	header *streamHeader
+}
+
+func (ss *serverStream) Context() context.Context {
+	panic("implement me")
+}
+
+func (ss *serverStream) SendMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (ss *serverStream) RecvMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (ss *serverStream) SetHeader(metadata.MD) error {
+	panic("implement me")
+}
+
+func (ss *serverStream) SendHeader(metadata.MD) error {
+	panic("implement me")
+}
+
+func (ss *serverStream) SetTrailer(metadata.MD) {
+	panic("implement me")
 }

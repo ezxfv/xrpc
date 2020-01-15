@@ -3,7 +3,7 @@ package xrpc
 import (
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/transport"
+	"github.com/edenzhong7/xrpc/pkg/net"
 )
 
 type options struct {
@@ -12,13 +12,17 @@ type options struct {
 	connectionTimeout time.Duration
 }
 
+type ConnectOptions struct {
+	dialer net.Dialer
+}
+
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
 // values passed to Dial.
 type dialOptions struct {
 	block       bool
 	insecure    bool
 	timeout     time.Duration
-	copts       transport.ConnectOptions
+	copts       ConnectOptions
 	callOptions []CallOption
 }
 

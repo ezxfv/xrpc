@@ -12,6 +12,21 @@ const (
 	KCP           = "kcp"
 )
 
+var (
+	dialers = make(map[Protocol]Dialer)
+)
+
+func RegisterDialer(protocol Protocol, dialer Dialer) {
+	if _, ok := dialers[protocol]; !ok {
+		dialers[protocol] = dialer
+	}
+}
+
+func GetDialer(protocol Protocol) Dialer {
+	dialer := dialers[protocol]
+	return dialer
+}
+
 type Listener interface {
 	net.Listener
 }
@@ -24,5 +39,8 @@ func Listen(protocol Protocol, addr string) (lis Listener, err error) {
 	return
 }
 
-type Dialer struct {
+func Dial(protocol Protocol, addr string) (conn Conn, err error) {
+	return
 }
+
+type Dialer func(addr string) (conn Conn, err error)
