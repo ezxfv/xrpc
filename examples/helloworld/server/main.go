@@ -30,7 +30,7 @@ func (g *GreeterImpl) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.H
 func startServer(ctx *cli.Context) {
 	protocol := ctx.String("protocol")
 	addr := ctx.String("addr")
-	lis, err := net.Listen(protocol, addr)
+	lis, err := net.Listen(context.Background(), protocol, addr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,12 +47,12 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "addr",
-				Value: ":9898",
+				Value: "localhost:9898",
 				Usage: "addr to listen",
 			},
 			&cli.StringFlag{
 				Name:  "protocol",
-				Value: "tcp",
+				Value: "ws",
 				Usage: "net protocol",
 			},
 		},

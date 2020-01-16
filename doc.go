@@ -1,5 +1,1 @@
 package xrpc
-
-func init() {
-
-}

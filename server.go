@@ -139,12 +139,16 @@ func (s *Server) listen(lis net.Listener) {
 
 func (s *Server) handleSession(session *smux.Session) {
 	log.Println("handle server session")
+	defer log.Println("close server session")
 	for {
 		stream, err := session.AcceptStream()
 		if err != nil {
 			break
 		}
 		pf, data, err := recv(stream)
+		if err != nil {
+			return
+		}
 		ss := &serverStream{
 			stream: stream,
 			codec:  encoding.GetCodec("proto"),

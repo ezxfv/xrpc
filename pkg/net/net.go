@@ -1,8 +1,26 @@
 package net
 
-import "net"
+import (
+	"context"
+	"errors"
+	"net"
+)
 
 type Protocol = string
+type Addr = net.Addr
+
+type XAddr struct {
+	protocol Protocol
+	addr     string
+}
+
+func (xaddr *XAddr) Network() string {
+	return xaddr.protocol
+}
+
+func (xaddr *XAddr) String() string {
+	return xaddr.addr
+}
 
 const (
 	TCP  Protocol = "tcp"
@@ -12,8 +30,12 @@ const (
 	KCP           = "kcp"
 )
 
+type Dialer func(ctx context.Context, addr string) (conn Conn, err error)
+type ListenerBuilder func(ctx context.Context, addr string) (lis Listener, err error)
+
 var (
-	dialers = make(map[Protocol]Dialer)
+	dialers   = make(map[Protocol]Dialer)
+	listeners = make(map[Protocol]ListenerBuilder)
 )
 
 func RegisterDialer(protocol Protocol, dialer Dialer) {
@@ -27,6 +49,12 @@ func GetDialer(protocol Protocol) Dialer {
 	return dialer
 }
 
+func RegisterListenerBuilder(protocol Protocol, builder ListenerBuilder) {
+	if _, ok := listeners[protocol]; !ok {
+		listeners[protocol] = builder
+	}
+}
+
 type Listener interface {
 	net.Listener
 }
@@ -35,17 +63,20 @@ type Conn interface {
 	net.Conn
 }
 
-func Listen(protocol Protocol, addr string) (lis Listener, err error) {
-	switch protocol {
-	case TCP:
-		lis, err = net.Listen("tcp", addr)
+func Listen(ctx context.Context, protocol Protocol, addr string) (lis Listener, err error) {
+	if builder, ok := listeners[protocol]; ok {
+		lis, err = builder(ctx, addr)
 		return
 	}
+	err = errors.New("unsupported protocol " + protocol)
 	return
 }
 
-func Dial(protocol Protocol, addr string) (conn Conn, err error) {
-	return GetDialer(protocol)(addr)
+func Dial(ctx context.Context, protocol Protocol, addr string) (conn Conn, err error) {
+	if dialer, ok := dialers[protocol]; ok {
+		conn, err = dialer(ctx, addr)
+		return
+	}
+	err = errors.New("unsupported protocol " + protocol)
+	return
 }
-
-type Dialer func(addr string) (conn Conn, err error)

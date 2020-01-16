@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/edenzhong7/xrpc"
 	_ "github.com/edenzhong7/xrpc/pkg/encoding/gzip"
@@ -28,14 +27,12 @@ func startClient(c *cli.Context) {
 	client := pb.NewGreeterClient(conn)
 
 	// Contact the server and print out its response.
-	name := "xrpc_test"
+	name := "xrpc_test!!"
 	if len(os.Args) > 1 {
 		name = os.Args[1]
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
 	for i := 0; i < 10; i++ {
-		r, err := client.SayHello(ctx, &pb.HelloRequest{Name: name})
+		r, err := client.SayHello(context.Background(), &pb.HelloRequest{Name: name})
 		if err != nil {
 			log.Fatalf("could not greet: %v", err)
 		}
@@ -49,12 +46,12 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "addr",
-				Value: ":9898",
+				Value: "localhost:9898",
 				Usage: "service addr",
 			},
 			&cli.StringFlag{
 				Name:  "protocol",
-				Value: "tcp",
+				Value: "ws",
 				Usage: "net protocol",
 			},
 		},

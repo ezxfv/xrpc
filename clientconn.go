@@ -27,7 +27,7 @@ type CallOption struct {
 }
 
 func Dial(protocol net.Protocol, addr string, opts ...DialOption) (cc *ClientConn, err error) {
-	conn, err := net.Dial(protocol, addr)
+	conn, err := net.Dial(context.Background(), protocol, addr)
 	session, err := smux.Client(conn, nil)
 	n, err := conn.Write([]byte(Preface))
 	if err != nil {
@@ -75,6 +75,9 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	}
 
 	stream, err = cc.session.OpenStream()
+	if err != nil {
+		return nil, err
+	}
 	header := &streamHeader{
 		Cmd:        Init,
 		FullMethod: method,
