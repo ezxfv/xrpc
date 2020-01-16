@@ -19,7 +19,8 @@ var (
 		time.Sleep(time.Second)
 
 		// dial to the echo server
-		conn, err = kcp.DialWithOptions(addr, block, 10, 3)
+		kc, err := kcp.DialWithOptions(addr, block, 10, 3)
+		conn = &kcpConn{kc}
 		return
 	}
 )
@@ -32,6 +33,33 @@ func init() {
 func newKcpListener(ctx context.Context, addr string) (lis Listener, err error) {
 	key := pbkdf2.Key([]byte("demo pass"), []byte("demo salt"), 1024, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-	lis, err = kcp.ListenWithOptions(addr, block, 10, 3)
+	l, err := kcp.ListenWithOptions(addr, block, 10, 3)
+	lis = &kcpListener{lis: l}
 	return
+}
+
+type kcpConn struct {
+	*kcp.UDPSession
+}
+
+func (kc *kcpConn) SupportMux() bool {
+	return true
+}
+
+type kcpListener struct {
+	lis *kcp.Listener
+}
+
+func (kl *kcpListener) Accept() (conn Conn, err error) {
+	c, err := kl.lis.AcceptKCP()
+	conn = &kcpConn{c}
+	return
+}
+
+func (kl *kcpListener) Close() error {
+	return kl.lis.Close()
+}
+
+func (kl *kcpListener) Addr() Addr {
+	return kl.lis.Addr()
 }

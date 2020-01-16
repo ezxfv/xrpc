@@ -19,6 +19,7 @@ type ClientConn struct {
 	dopts       *dialOptions
 	protocol    net.Protocol
 	session     *smux.Session
+	conn        net.Conn
 	streamCache map[string]ClientStream
 	middlewares []middleware.ClientMiddleware
 }
@@ -41,6 +42,7 @@ func Dial(protocol net.Protocol, addr string, opts ...DialOption) (cc *ClientCon
 		dopts:       &dialOptions{copts: ConnectOptions{dialer: net.GetDialer(protocol)}},
 		protocol:    protocol,
 		session:     session,
+		conn:        conn,
 		streamCache: map[string]ClientStream{},
 		middlewares: nil,
 	}
@@ -67,14 +69,21 @@ func genStreamKey(protocol net.Protocol, addr string, method string) string {
 
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
 	log.Println("new client session")
-	var stream *smux.Stream
+	var stream net.Conn
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)
 	if cs, ok = cc.streamCache[streamKey]; ok {
 		return
 	}
-
-	stream, err = cc.session.OpenStream()
+	if cc.conn.SupportMux() {
+		s, err := cc.session.OpenStream()
+		if err != nil {
+			return nil, err
+		}
+		stream = &streamConn{s}
+	} else {
+		stream = cc.conn
+	}
 	if err != nil {
 		return nil, err
 	}

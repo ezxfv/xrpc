@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
+	"github.com/edenzhong7/xrpc/pkg/net"
 
 	"github.com/xtaci/smux"
 
@@ -80,7 +81,7 @@ type ServerStream interface {
 type clientStream struct {
 	ctx context.Context
 
-	stream *smux.Stream
+	stream net.Conn
 	header *streamHeader
 	codec  encoding.Codec
 	cp     encoding.Compressor
@@ -174,10 +175,18 @@ func (cs *clientStream) CloseSend() error {
 	panic("implement me")
 }
 
+type streamConn struct {
+	*smux.Stream
+}
+
+func (sc *streamConn) SupportMux() bool {
+	return false
+}
+
 type serverStream struct {
 	ctx context.Context
 
-	stream *smux.Stream
+	stream net.Conn
 	header *streamHeader
 
 	codec encoding.Codec

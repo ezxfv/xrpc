@@ -143,7 +143,7 @@ func (ql *QUICListener) AcceptWithTimeout(timeout time.Duration) (conn Conn, err
 	}
 }
 
-func (ql *QUICListener) Accept() (net.Conn, error) {
+func (ql *QUICListener) Accept() (Conn, error) {
 	return ql.AcceptFullConn()
 }
 
@@ -173,4 +173,7 @@ func (qc *QUICConnection) LocalAddr() net.Addr {
 
 func (qc *QUICConnection) RemoteAddr() net.Addr {
 	return qc.rAddr
+}
+func (qc *QUICConnection) SupportMux() bool {
+	return true
 }

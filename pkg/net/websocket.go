@@ -91,7 +91,7 @@ type WSListener struct {
 	closed   bool
 }
 
-func (wsl *WSListener) Accept() (net.Conn, error) {
+func (wsl *WSListener) Accept() (Conn, error) {
 	return wsl.AcceptFullConn()
 }
 
@@ -196,4 +196,8 @@ func (wsc *WSConnection) Close() error {
 		return err
 	}
 	return wsc.Conn.Close()
+}
+
+func (wsc *WSConnection) SupportMux() bool {
+	return false
 }

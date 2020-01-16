@@ -56,11 +56,20 @@ func RegisterListenerBuilder(protocol Protocol, builder ListenerBuilder) {
 }
 
 type Listener interface {
-	net.Listener
+	// Accept waits for and returns the next connection to the listener.
+	Accept() (Conn, error)
+
+	// Close closes the listener.
+	// Any blocked Accept operations will be unblocked and return errors.
+	Close() error
+
+	// Addr returns the listener's network address.
+	Addr() Addr
 }
 
 type Conn interface {
 	net.Conn
+	SupportMux() bool
 }
 
 func Listen(ctx context.Context, protocol Protocol, addr string) (lis Listener, err error) {

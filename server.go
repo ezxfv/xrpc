@@ -131,9 +131,34 @@ func (s *Server) listen(lis net.Listener) {
 		if err != nil || n != len(Preface) {
 			continue
 		}
-		session, err := smux.Server(conn, nil)
-		s.sessions[session] = true
-		go s.handleSession(session)
+		if conn.SupportMux() {
+			session, err := smux.Server(conn, nil)
+			if err != nil {
+				continue
+			}
+			s.sessions[session] = true
+			go s.handleSession(session)
+		} else {
+			pf, data, err := recv(conn)
+			if err != nil {
+				return
+			}
+			ss := &serverStream{
+				stream: conn,
+				codec:  encoding.GetCodec("proto"),
+				cp:     encoding.GetCompressor("gzip"),
+			}
+			if pf == CmdHeader {
+				header := &streamHeader{}
+				err = json.Unmarshal(data, header)
+				if err != nil {
+					continue
+				}
+				ss.header = header
+				go s.processStream(s.ctx, ss, header)
+			}
+		}
+
 	}
 }
 
@@ -150,7 +175,7 @@ func (s *Server) handleSession(session *smux.Session) {
 			return
 		}
 		ss := &serverStream{
-			stream: stream,
+			stream: &streamConn{stream},
 			codec:  encoding.GetCodec("proto"),
 			cp:     encoding.GetCompressor("gzip"),
 		}
@@ -168,6 +193,7 @@ func (s *Server) handleSession(session *smux.Session) {
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
 	log.Println("process server stream")
+	log.Println("close server stream")
 	var err error
 	var reply interface{}
 	service, method := header.splitMethod()
@@ -179,7 +205,7 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 	for {
 		reply, err = desc.Handler(srv, ctx, stream.RecvMsg, nil)
 		if err != nil {
-			continue
+			break
 		}
 		if err = stream.SendMsg(reply); err != nil {
 			break
