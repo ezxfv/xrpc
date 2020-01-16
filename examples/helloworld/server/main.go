@@ -9,6 +9,8 @@ import (
 	cli "github.com/urfave/cli/v2"
 
 	"github.com/edenzhong7/xrpc"
+	_ "github.com/edenzhong7/xrpc/pkg/encoding/gzip"
+	_ "github.com/edenzhong7/xrpc/pkg/encoding/proto"
 	"github.com/edenzhong7/xrpc/pkg/net"
 
 	pb "github.com/edenzhong7/xrpc/protocol/greeter"
@@ -37,6 +39,7 @@ func startServer(ctx *cli.Context) {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+	s.Start()
 }
 
 func main() {
@@ -44,12 +47,12 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "addr",
-				Value: "127.0.0.1:9090",
+				Value: ":9898",
 				Usage: "addr to listen",
 			},
 			&cli.StringFlag{
 				Name:  "protocol",
-				Value: "kcp",
+				Value: "tcp",
 				Usage: "net protocol",
 			},
 		},

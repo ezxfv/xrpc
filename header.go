@@ -1,8 +1,12 @@
 package xrpc
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"strings"
+)
 
 type payloadFormat uint8
+type HeaderCmd string
 
 const (
 	payloadLen = 1
@@ -11,10 +15,31 @@ const (
 
 	compressionNone payloadFormat = 0 // no compression
 	compressionMade payloadFormat = 1 // compressed
+	MetaHeader      payloadFormat = 2
+	CmdHeader       payloadFormat = 3
+
+	Init    HeaderCmd = "init"
+	Close   HeaderCmd = "close"
+	Upgrade HeaderCmd = "upgrade"
+
+	Preface = "xrpc/cheers"
 )
 
 type streamHeader struct {
 	FullMethod string
+	Cmd        HeaderCmd
+	Args       map[string]interface{}
+	Payload    []byte
+}
+
+func (sh *streamHeader) splitMethod() (service, method string) {
+	arr := strings.Split(sh.FullMethod, "/")
+	if len(arr) != 3 {
+		return
+	}
+	service = arr[1]
+	method = arr[2]
+	return
 }
 
 // msgHeader returns a 5-byte header for the message being transmitted and the

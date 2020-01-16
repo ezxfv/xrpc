@@ -36,11 +36,16 @@ type Conn interface {
 }
 
 func Listen(protocol Protocol, addr string) (lis Listener, err error) {
+	switch protocol {
+	case TCP:
+		lis, err = net.Listen("tcp", addr)
+		return
+	}
 	return
 }
 
 func Dial(protocol Protocol, addr string) (conn Conn, err error) {
-	return
+	return GetDialer(protocol)(addr)
 }
 
 type Dialer func(addr string) (conn Conn, err error)

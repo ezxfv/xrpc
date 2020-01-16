@@ -3,7 +3,9 @@ package xrpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 
@@ -27,6 +29,14 @@ type CallOption struct {
 func Dial(protocol net.Protocol, addr string, opts ...DialOption) (cc *ClientConn, err error) {
 	conn, err := net.Dial(protocol, addr)
 	session, err := smux.Client(conn, nil)
+	n, err := conn.Write([]byte(Preface))
+	if err != nil {
+		return
+	}
+	if n != len(Preface) {
+		return nil, errors.New("write Preface unmatch")
+	}
+
 	cc = &ClientConn{
 		dopts:       &dialOptions{copts: ConnectOptions{dialer: net.GetDialer(protocol)}},
 		protocol:    protocol,
@@ -56,6 +66,7 @@ func genStreamKey(protocol net.Protocol, addr string, method string) string {
 }
 
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
+	log.Println("new client session")
 	var stream *smux.Stream
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)
@@ -64,12 +75,20 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	}
 
 	stream, err = cc.session.OpenStream()
-	header := &streamHeader{FullMethod: method}
-	hdr, err := json.Marshal(&header)
+	header := &streamHeader{
+		Cmd:        Init,
+		FullMethod: method,
+	}
+	headerJson, err := json.Marshal(&header)
 	if err != nil {
 		return nil, err
 	}
+	hdr, data := msgHeader(headerJson, nil)
+	hdr[0] = byte(CmdHeader)
 	if _, err = stream.Write(hdr); err != nil {
+		return nil, err
+	}
+	if _, err = stream.Write(data); err != nil {
 		return nil, err
 	}
 	cs = &clientStream{
@@ -92,11 +111,10 @@ func invoke(ctx context.Context, method string, req, reply interface{}, cc *Clie
 	if err != nil {
 		return
 	}
-	if err != nil {
-		return err
-	}
+	log.Println("client invoke SendMsg")
 	if err := cs.SendMsg(req); err != nil {
 		return err
 	}
+	log.Println("client invoke RecvMsg")
 	return cs.RecvMsg(reply)
 }

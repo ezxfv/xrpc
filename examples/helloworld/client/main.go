@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/edenzhong7/xrpc"
-	"github.com/urfave/cli/v2"
+	_ "github.com/edenzhong7/xrpc/pkg/encoding/gzip"
+	_ "github.com/edenzhong7/xrpc/pkg/encoding/proto"
+
+	cli "github.com/urfave/cli/v2"
 
 	pb "github.com/edenzhong7/xrpc/protocol/greeter"
 )
@@ -31,11 +34,14 @@ func startClient(c *cli.Context) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := client.SayHello(ctx, &pb.HelloRequest{Name: name})
-	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+	for i := 0; i < 10; i++ {
+		r, err := client.SayHello(ctx, &pb.HelloRequest{Name: name})
+		if err != nil {
+			log.Fatalf("could not greet: %v", err)
+		}
+		log.Printf("Greeting: %s", r.GetMessage())
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
+
 }
 
 func main() {
@@ -43,12 +49,12 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "addr",
-				Value: "127.0.0.1:9090",
+				Value: ":9898",
 				Usage: "service addr",
 			},
 			&cli.StringFlag{
 				Name:  "protocol",
-				Value: "kcp",
+				Value: "tcp",
 				Usage: "net protocol",
 			},
 		},

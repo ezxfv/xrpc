@@ -78,6 +78,8 @@ type ServerStream interface {
 }
 
 type clientStream struct {
+	ctx context.Context
+
 	stream *smux.Stream
 	header *streamHeader
 	codec  encoding.Codec
@@ -85,7 +87,7 @@ type clientStream struct {
 }
 
 func (cs *clientStream) Context() context.Context {
-	panic("implement me")
+	return cs.ctx
 }
 
 func (cs *clientStream) SendMsg(m interface{}) error {
@@ -93,12 +95,18 @@ func (cs *clientStream) SendMsg(m interface{}) error {
 	if err != nil {
 		return err
 	}
+	var compData []byte = nil
 	cbuf := &bytes.Buffer{}
 	z, err := cs.cp.Compress(cbuf)
-	if _, err = z.Write(data); err != nil {
-		return err
+	if z != nil {
+		if _, err = z.Write(data); err != nil {
+			return err
+		}
+		if err = z.Close(); err != nil {
+			return err
+		}
 	}
-	compData := cbuf.Bytes()
+	compData = cbuf.Bytes()
 	hdr, payload := msgHeader(data, compData)
 	if _, err = cs.stream.Write(hdr); err != nil {
 		return err
@@ -167,20 +175,65 @@ func (cs *clientStream) CloseSend() error {
 }
 
 type serverStream struct {
+	ctx context.Context
+
 	stream *smux.Stream
 	header *streamHeader
+
+	codec encoding.Codec
+	cp    encoding.Compressor
 }
 
 func (ss *serverStream) Context() context.Context {
-	panic("implement me")
+	return ss.ctx
 }
 
 func (ss *serverStream) SendMsg(m interface{}) error {
-	panic("implement me")
+	data, err := ss.codec.Marshal(m)
+	if err != nil {
+		return err
+	}
+	var compData []byte = nil
+	cbuf := &bytes.Buffer{}
+	z, err := ss.cp.Compress(cbuf)
+	if z != nil {
+		if _, err = z.Write(data); err != nil {
+			return err
+		}
+		if err = z.Close(); err != nil {
+			return err
+		}
+	}
+	compData = cbuf.Bytes()
+	hdr, payload := msgHeader(data, compData)
+	if _, err = ss.stream.Write(hdr); err != nil {
+		return err
+	}
+	if _, err = ss.stream.Write(payload); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ss *serverStream) RecvMsg(m interface{}) error {
-	panic("implement me")
+	pf, msg, err := recv(ss.stream)
+	if err != nil {
+		return err
+	}
+	var data []byte
+	if pf == compressionMade {
+		dc, _ := ss.cp.Decompress(bytes.NewReader(msg))
+		data, err = ioutil.ReadAll(dc)
+		if err != nil {
+			return err
+		}
+	} else {
+		data = msg
+	}
+	if err = ss.codec.Unmarshal(data, m); err != nil {
+		return errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
+	}
+	return nil
 }
 
 func (ss *serverStream) SetHeader(metadata.MD) error {
