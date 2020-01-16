@@ -232,6 +232,9 @@ func (ss *serverStream) RecvMsg(m interface{}) error {
 	var data []byte
 	if pf == compressionMade {
 		dc, _ := ss.cp.Decompress(bytes.NewReader(msg))
+		if dc == nil {
+			return errors.New("decompress failed")
+		}
 		data, err = ioutil.ReadAll(dc)
 		if err != nil {
 			return err

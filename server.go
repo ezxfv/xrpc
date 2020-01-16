@@ -194,8 +194,6 @@ func (s *Server) handleSession(session *smux.Session) {
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
 	log.Println("process server stream")
 	log.Println("close server stream")
-	var err error
-	var reply interface{}
 	service, method := header.splitMethod()
 	if service == "" || method == "" {
 		return
@@ -203,7 +201,7 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 	srv := s.m[service].server
 	desc := s.m[service].md[method]
 	for {
-		reply, err = desc.Handler(srv, ctx, stream.RecvMsg, nil)
+		reply, err := desc.Handler(srv, ctx, stream.RecvMsg, nil)
 		if err != nil {
 			break
 		}
