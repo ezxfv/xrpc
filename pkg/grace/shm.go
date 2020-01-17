@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -23,9 +24,14 @@ const (
 
 	// Special key values.
 	IPC_PRIVATE = 0 // Private key. NOTE: this value is of type __key_t, i.e., ((__key_t) 0)
+
+	Stop    = -1
+	Start   = 1
+	Reload  = 2
+	Restart = 3
 )
 
-func ShmSet(id int, val int) uintptr{
+func ShmSet(id int, val int) uintptr {
 	shmId := genShmId(id, IPC_CREAT)
 	shmAddr := genShmAddr(shmId)
 	defer syscall.Syscall(syscall.SYS_SHMDT, shmAddr, 0, 0)
@@ -33,7 +39,7 @@ func ShmSet(id int, val int) uintptr{
 	return shmId
 }
 
-func ShmGet(id int) int{
+func ShmGet(id int) int {
 	shmId := genShmId(id, IPC_NORMAL)
 	shmAddr := genShmAddr(shmId)
 	defer syscall.Syscall(syscall.SYS_SHMDT, shmAddr, 0, 0)
@@ -62,4 +68,23 @@ func genShmAddr(shmId uintptr) uintptr {
 		os.Exit(-2)
 	}
 	return shmAddr
+}
+
+func RunWithActions(id int, as map[int]func()) {
+	defer ShmDel(id)
+
+	var val int
+	for {
+		time.Sleep(time.Millisecond * 100)
+		if val = ShmGet(id); val == Stop {
+			if fn, ok := as[val]; ok {
+				fn()
+			}
+			break
+		}
+		if fn, ok := as[val]; ok {
+			fn()
+		}
+	}
+
 }

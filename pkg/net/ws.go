@@ -27,7 +27,7 @@ var (
 		wsServer := genWsURL(hp[0], hp[1])
 		c, _, err := ws.DefaultDialer.Dial(wsServer, nil)
 		if err != nil {
-			log.GLogger().Fatal("ws dial:", err)
+			log.Fatal("ws dial:", err)
 		}
 		conn = newWSConn(c)
 		//n, err := conn.Write([]byte(wsPath))
@@ -102,7 +102,7 @@ func (wsl *WSListener) Addr() net.Addr {
 func (wsl *WSListener) handleConnection(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.GLogger().Debug("upgrader:", err)
+		log.Debug("upgrader:", err)
 		return
 	}
 	wsl.listener.Append(c)

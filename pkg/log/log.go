@@ -17,3 +17,73 @@ type Logger interface {
 	Panic(a ...interface{})
 	Panicf(format string, a ...interface{})
 }
+
+// SetLevel sets the log level of ALL receivers
+func SetLevel(lvl Level) {
+	gLogger.SetLevel(lvl)
+}
+
+// SetPrefix sets the prefix of ALL receivers
+func SetPrefix(prefix string) {
+	gLogger.SetPrefix(prefix)
+}
+
+// Debug logs arguments
+func Debug(a ...interface{}) {
+	gLogger.Debug(a...)
+}
+
+// Info logs arguments
+func Info(a ...interface{}) {
+	gLogger.Info(a...)
+}
+
+// Warn logs arguments
+func Warn(a ...interface{}) {
+	gLogger.Warn(a...)
+}
+
+// Error logs arguments
+func Error(a ...interface{}) {
+	gLogger.Error(a...)
+}
+
+// Fatal logs arguments
+func Fatal(a ...interface{}) {
+	gLogger.Fatal(a...)
+}
+
+// Panic logs arguments
+func Panic(a ...interface{}) {
+	gLogger.Panic(a...)
+}
+
+// Debugf logs formated arguments
+func Debugf(format string, a ...interface{}) {
+	gLogger.Debugf(format, a...)
+}
+
+// Infof logs formated arguments
+func Infof(format string, a ...interface{}) {
+	gLogger.Infof(format, a...)
+}
+
+// Warnf logs formated arguments
+func Warnf(format string, a ...interface{}) {
+	gLogger.Warnf(format, a...)
+}
+
+// Errorf logs formated arguments
+func Errorf(format string, a ...interface{}) {
+	gLogger.Errorf(format, a...)
+}
+
+// Fatalf logs formated arguments
+func Fatalf(format string, a ...interface{}) {
+	gLogger.Fatalf(format, a...)
+}
+
+// Panicf logs formated arguments
+func Panicf(format string, a ...interface{}) {
+	gLogger.Panicf(format, a...)
+}

@@ -41,3 +41,35 @@ func TestStop(t *testing.T) {
 	time.Sleep(time.Second)
 	grace.ShmSet(id, exit)
 }
+
+func TestRunWithActions(t *testing.T) {
+	c := make(chan struct{})
+	s := struct{}{}
+	go grace.RunWithActions(id, map[int]func(){
+		grace.Start: func() {
+			println("start")
+			c <- s
+		},
+		grace.Reload: func() {
+			println("reload")
+			c <- s
+		},
+		grace.Restart: func() {
+			println("restart")
+			c <- s
+		},
+		grace.Stop: func() {
+			println("stop")
+			c <- s
+		},
+	})
+	grace.ShmSet(id, grace.Start)
+	<-c
+	grace.ShmSet(id, grace.Reload)
+	<-c
+	grace.ShmSet(id, grace.Restart)
+	<-c
+	grace.ShmSet(id, grace.Stop)
+	<-c
+	close(c)
+}

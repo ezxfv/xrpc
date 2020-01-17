@@ -9,6 +9,21 @@ import (
 type Protocol = string
 type Addr = net.Addr
 
+const (
+	TCP   Protocol = "tcp"
+	UDP            = "udp"
+	QUIC           = "quic"
+	WS             = "ws"
+	WSS            = "wss"
+	MWS            = "mws"
+	MWSS           = "mwss"
+	TLS            = "tls"
+	MTLS           = "mtls"
+	KCP            = "kcp"
+	SSH            = "ssh"
+	HTTP2          = "http2"
+)
+
 type XAddr struct {
 	protocol Protocol
 	addr     string
@@ -21,14 +36,6 @@ func (xaddr *XAddr) Network() string {
 func (xaddr *XAddr) String() string {
 	return xaddr.addr
 }
-
-const (
-	TCP  Protocol = "tcp"
-	UDP           = "udp"
-	QUIC          = "quic"
-	WS            = "ws"
-	KCP           = "kcp"
-)
 
 type Dialer func(ctx context.Context, addr string) (conn Conn, err error)
 type ListenerBuilder func(ctx context.Context, addr string) (lis Listener, err error)
