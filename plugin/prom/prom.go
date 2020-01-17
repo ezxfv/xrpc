@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/edenzhong7/xrpc/middleware"
+	"github.com/edenzhong7/xrpc/plugin"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func init() {
-	middleware.RegisterBuilder(&builder{})
+	plugin.RegisterBuilder(&builder{})
 }
 
 const (
@@ -25,11 +25,11 @@ func (b *builder) Name() string {
 	return Name
 }
 
-func (b *builder) NewClientMiddleware() middleware.ClientMiddleware {
+func (b *builder) NewClientMiddleware() plugin.ClientMiddleware {
 	panic("implement me")
 }
 
-func (b *builder) NewServerMiddleware() middleware.ServerMiddleware {
+func (b *builder) NewServerMiddleware() plugin.ServerMiddleware {
 	panic("implement me")
 }
 

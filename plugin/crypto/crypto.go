@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	plugin.RegisterPlugin(&cryptoPlugin{})
+	plugin.RegisterXPlugin(&cryptoPlugin{})
 }
 
 type cryptoPlugin struct {

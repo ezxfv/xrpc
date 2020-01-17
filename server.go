@@ -14,7 +14,6 @@ import (
 
 	"github.com/edenzhong7/xrpc/pkg/net"
 
-	"github.com/edenzhong7/xrpc/middleware"
 	"github.com/edenzhong7/xrpc/plugin"
 
 	"google.golang.org/grpc"
@@ -33,7 +32,7 @@ func NewServer() *Server {
 		lis:         map[net.Listener]bool{},
 		conns:       map[net.Conn]bool{},
 		sessions:    map[*smux.Session]bool{},
-		middlewares: []middleware.ServerMiddleware{},
+		middlewares: []plugin.ServerMiddleware{},
 		plugins:     map[string]plugin.Plugin{},
 	}
 	return s
@@ -59,7 +58,7 @@ type Server struct {
 	lis         map[net.Listener]bool
 	conns       map[net.Conn]bool
 	sessions    map[*smux.Session]bool
-	middlewares []middleware.ServerMiddleware
+	middlewares []plugin.ServerMiddleware
 	plugins     map[string]plugin.Plugin
 
 	mu       *sync.Mutex
@@ -90,7 +89,7 @@ func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 	s.register(sd, ss)
 }
 
-func (s *Server) AddMiddleware(ms ...middleware.ServerMiddleware) {
+func (s *Server) AddMiddleware(ms ...plugin.ServerMiddleware) {
 	s.middlewares = append(s.middlewares, ms...)
 }
 

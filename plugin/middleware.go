@@ -1,4 +1,4 @@
-package middleware
+package plugin
 
 import (
 	"context"

@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	plugin.RegisterPlugin(&logPlugin{})
+	plugin.RegisterXPlugin(&logPlugin{})
 }
 
 type logPlugin struct {

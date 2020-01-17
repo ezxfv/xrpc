@@ -5,9 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xtaci/smux"
-
 	"github.com/edenzhong7/xrpc/pkg/net"
+	"github.com/xtaci/smux"
 
 	"github.com/stretchr/testify/assert"
 )

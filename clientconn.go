@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/edenzhong7/xrpc/plugin"
+
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 
-	"github.com/edenzhong7/xrpc/middleware"
 	"github.com/edenzhong7/xrpc/pkg/net"
 
 	"github.com/xtaci/smux"
@@ -21,7 +22,7 @@ type ClientConn struct {
 	session     *smux.Session
 	conn        net.Conn
 	streamCache map[string]ClientStream
-	middlewares []middleware.ClientMiddleware
+	middlewares []plugin.ClientMiddleware
 }
 
 type CallOption struct {
@@ -59,7 +60,7 @@ func (cc *ClientConn) Invoke(ctx context.Context, method string, args, reply int
 	return handler()
 }
 
-func (cc *ClientConn) AddMiddleware(ms ...middleware.ClientMiddleware) {
+func (cc *ClientConn) AddMiddleware(ms ...plugin.ClientMiddleware) {
 	cc.middlewares = append(cc.middlewares, ms...)
 }
 

@@ -3,7 +3,7 @@ package trace
 import (
 	"context"
 
-	"github.com/edenzhong7/xrpc/middleware"
+	"github.com/edenzhong7/xrpc/plugin"
 )
 
 const (
@@ -11,7 +11,7 @@ const (
 )
 
 func init() {
-	middleware.RegisterBuilder(&builder{})
+	plugin.RegisterBuilder(&builder{})
 }
 
 type builder struct{}
@@ -20,11 +20,11 @@ func (b *builder) Name() string {
 	return Name
 }
 
-func (b *builder) NewClientMiddleware() middleware.ClientMiddleware {
+func (b *builder) NewClientMiddleware() plugin.ClientMiddleware {
 	panic("implement me")
 }
 
-func (b *builder) NewServerMiddleware() middleware.ServerMiddleware {
+func (b *builder) NewServerMiddleware() plugin.ServerMiddleware {
 	panic("implement me")
 }
 
