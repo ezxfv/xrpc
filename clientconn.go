@@ -18,7 +18,7 @@ import (
 
 type ClientConn struct {
 	dopts       *dialOptions
-	protocol    net.Protocol
+	protocol    net.Network
 	session     *smux.Session
 	conn        net.Conn
 	streamCache map[string]ClientStream
@@ -28,8 +28,8 @@ type ClientConn struct {
 type CallOption struct {
 }
 
-func Dial(protocol net.Protocol, addr string, opts ...DialOption) (cc *ClientConn, err error) {
-	conn, err := net.Dial(context.Background(), protocol, addr)
+func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn, err error) {
+	conn, err := net.Dial(context.Background(), network, addr)
 	session, err := smux.Client(conn, nil)
 	n, err := conn.Write([]byte(Preface))
 	if err != nil {
@@ -40,8 +40,8 @@ func Dial(protocol net.Protocol, addr string, opts ...DialOption) (cc *ClientCon
 	}
 
 	cc = &ClientConn{
-		dopts:       &dialOptions{copts: ConnectOptions{dialer: net.GetDialer(protocol)}},
-		protocol:    protocol,
+		dopts:       &dialOptions{copts: ConnectOptions{dialer: net.GetDialer(network)}},
+		protocol:    network,
 		session:     session,
 		conn:        conn,
 		streamCache: map[string]ClientStream{},
@@ -64,8 +64,8 @@ func (cc *ClientConn) AddMiddleware(ms ...plugin.ClientMiddleware) {
 	cc.middlewares = append(cc.middlewares, ms...)
 }
 
-func genStreamKey(protocol net.Protocol, addr string, method string) string {
-	return fmt.Sprintf("%s://%s%s", protocol, addr, method)
+func genStreamKey(network net.Network, addr string, method string) string {
+	return fmt.Sprintf("%s://%s%s", network, addr, method)
 }
 
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
@@ -76,15 +76,13 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	if cs, ok = cc.streamCache[streamKey]; ok {
 		return
 	}
-	if cc.conn.SupportMux() {
-		s, err := cc.session.OpenStream()
-		if err != nil {
-			return nil, err
-		}
-		stream = &streamConn{s}
-	} else {
-		stream = cc.conn
+
+	s, err := cc.session.OpenStream()
+	if err != nil {
+		return nil, err
 	}
+	stream = &streamConn{s}
+
 	if err != nil {
 		return nil, err
 	}

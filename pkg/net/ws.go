@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/algs"
 	"github.com/edenzhong7/xrpc/pkg/log"
 
 	ws "github.com/gorilla/websocket"
@@ -30,14 +29,11 @@ var (
 			log.Fatal("ws dial:", err)
 		}
 		conn = newWSConn(c)
-		//n, err := conn.Write([]byte(wsPath))
-		//if err != nil || n != len(wsPath) {
-		//	return nil, errors.New("write ws path failed")
-		//}
 		return
 	}
 
 	_ Listener = &WSListener{}
+	_ Conn     = &WSConnection{}
 	// Default gorilla upgrader
 	upgrader = ws.Upgrader{
 		// Allow requests from *all* origins.
@@ -61,8 +57,8 @@ func genWsURL(host, port string) string {
 
 func newWSListener(ctx context.Context, addr string) (lis Listener, err error) {
 	wsListener := &WSListener{
-		addr:     &XAddr{protocol: WS, addr: addr},
-		listener: algs.NewQueue(),
+		addr:     &XAddr{network: WS, addr: addr},
+		connChan: make(chan Conn, 1024),
 		closed:   false,
 	}
 	go wsListener.listen()
@@ -87,7 +83,7 @@ func newWSConn(c *ws.Conn) (conn Conn) {
 
 type WSListener struct {
 	addr     Addr
-	listener *algs.Queue
+	connChan chan Conn
 	closed   bool
 }
 
@@ -105,7 +101,13 @@ func (wsl *WSListener) handleConnection(w http.ResponseWriter, r *http.Request) 
 		log.Debug("upgrader:", err)
 		return
 	}
-	wsl.listener.Append(c)
+	conn := newWSConn(c)
+	select {
+	case wsl.connChan <- conn:
+	default:
+		conn.Close()
+		log.Debugf("ws %s->%s: conn chan is full", conn.RemoteAddr().String(), conn.LocalAddr().String())
+	}
 }
 
 func (wsl *WSListener) listen() (err error) {
@@ -114,28 +116,22 @@ func (wsl *WSListener) listen() (err error) {
 }
 
 func (wsl *WSListener) AcceptFullConn() (conn Conn, err error) {
-	wsConn, ok := wsl.listener.Pop().(*ws.Conn)
+	var ok bool
+	conn, ok = <-wsl.connChan
 	if !ok {
 		return nil, errors.New("unexpect failure")
 	}
-	conn = newWSConn(wsConn)
-	//b := make([]byte, len(wsPath))
-	//n, err := conn.Read(b)
-	//if err != nil || n != len(wsPath) {
-	//	return nil, errors.New("read ws path failed")
-	//}
 	return
 }
 
 func (wsl *WSListener) AcceptWithTimeout(timeout time.Duration) (conn Conn, err error) {
 	timer := time.NewTimer(timeout)
-	c := make(chan interface{})
-	go func() {
-		conn, err = wsl.AcceptFullConn()
-		c <- nil
-	}()
+	var ok bool
 	select {
-	case <-c:
+	case conn, ok = <-wsl.connChan:
+		if !ok {
+			return nil, errors.New("get conn from ws conn chan failed")
+		}
 		return
 	case <-timer.C:
 		return nil, errors.New("accept WS Connect timeout")
@@ -144,8 +140,8 @@ func (wsl *WSListener) AcceptWithTimeout(timeout time.Duration) (conn Conn, err 
 
 func (wsl *WSListener) Close() (err error) {
 	wsl.closed = true
-	for _, v := range wsl.listener.Items() {
-		err = v.(*ws.Conn).Close()
+	for v := range wsl.connChan {
+		err = v.(Conn).Close()
 		if err != nil {
 			return
 		}

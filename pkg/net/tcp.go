@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"net"
+	"time"
 )
 
 var (
@@ -11,6 +12,7 @@ var (
 		conn = &tcpConn{tc}
 		return
 	}
+	KeepAliveTime = time.Minute
 )
 
 func init() {
@@ -20,7 +22,7 @@ func init() {
 
 func newTCPListener(ctx context.Context, addr string) (lis Listener, err error) {
 	l, err := net.Listen("tcp", addr)
-	lis = &tcpListener{l}
+	lis = &tcpListener{l.(*net.TCPListener)}
 	return
 }
 
@@ -33,12 +35,18 @@ func (tc *tcpConn) SupportMux() bool {
 }
 
 type tcpListener struct {
-	lis net.Listener
+	lis *net.TCPListener
 }
 
 func (tl *tcpListener) Accept() (conn Conn, err error) {
-	c, err := tl.lis.Accept()
+	c, err := tl.lis.AcceptTCP()
+	if err != nil {
+		return
+	}
+	c.SetKeepAlive(true)
+	c.SetKeepAlivePeriod(KeepAliveTime)
 	conn = &tcpConn{c}
+
 	return
 }
 

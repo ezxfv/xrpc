@@ -1,6 +1,6 @@
 module github.com/edenzhong7/xrpc
 
-go 1.14
+go 1.13
 
 require (
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
@@ -15,8 +15,10 @@ require (
 	github.com/klauspost/cpuid v1.2.2 // indirect
 	github.com/klauspost/reedsolomon v1.9.3
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/lesismal/nbio v0.0.0-20200129190958-2d9b30c7a474
 	github.com/lucas-clemente/quic-go v0.14.1
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
+	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/opentracing/opentracing-go v1.1.0

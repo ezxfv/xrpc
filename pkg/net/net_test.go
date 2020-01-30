@@ -27,8 +27,8 @@ var (
 	}
 )
 
-func testLisConn(t *testing.T, protocol net.Protocol) {
-	lis, err := net.Listen(context.Background(), protocol, addr)
+func testLisConn(t *testing.T, network net.Network) {
+	lis, err := net.Listen(context.Background(), network, addr)
 	assert.Equal(t, nil, err)
 	conn, err := lis.Accept()
 	assert.Equal(t, nil, err)
@@ -43,8 +43,8 @@ func testLisConn(t *testing.T, protocol net.Protocol) {
 	assert.Equal(t, nil, lis.Close())
 }
 
-func testConn(t *testing.T, protocol net.Protocol) {
-	conn, err := net.Dial(context.Background(), protocol, addr)
+func testConn(t *testing.T, network net.Network) {
+	conn, err := net.Dial(context.Background(), network, addr)
 	assert.Equal(t, nil, err)
 	n, err := conn.Write(req)
 	assert.Equal(t, nil, err)
@@ -76,13 +76,13 @@ func TestWSConn(t *testing.T) {
 func TestWsMuxSession(t *testing.T) {
 	lis, err := net.Listen(context.Background(), net.WS, addr)
 	assert.Equal(t, nil, err)
-	conn, err := lis.Accept()
+	c, err := lis.Accept()
 	assert.Equal(t, nil, err)
 
-	//session, err := smux.Server(c, smuxCfg)
-	//assert.Equal(t, nil, err)
-	//conn, err := session.AcceptStream()
-	//assert.Equal(t, nil, err)
+	session, err := smux.Server(c, nil)
+	assert.Equal(t, nil, err)
+	conn, err := session.AcceptStream()
+	assert.Equal(t, nil, err)
 
 	d := make([]byte, len(req))
 	n, err := conn.Read(d)
@@ -96,13 +96,13 @@ func TestWsMuxSession(t *testing.T) {
 }
 
 func TestWsMuxConn(t *testing.T) {
-	conn, err := net.Dial(context.Background(), net.WS, addr)
+	c, err := net.Dial(context.Background(), net.WS, addr)
 	assert.Equal(t, nil, err)
 
-	//session, err := smux.Client(c, smuxCfg)
-	//assert.Equal(t, nil, err)
-	//conn, err := session.OpenStream()
-	//assert.Equal(t, nil, err)
+	session, err := smux.Client(c, nil)
+	assert.Equal(t, nil, err)
+	conn, err := session.OpenStream()
+	assert.Equal(t, nil, err)
 
 	n, err := conn.Write(req)
 	assert.Equal(t, nil, err)

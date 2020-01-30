@@ -6,31 +6,25 @@ import (
 	"net"
 )
 
-type Protocol = string
+type Network = string
 type Addr = net.Addr
 
 const (
-	TCP   Protocol = "tcp"
-	UDP            = "udp"
-	QUIC           = "quic"
-	WS             = "ws"
-	WSS            = "wss"
-	MWS            = "mws"
-	MWSS           = "mwss"
-	TLS            = "tls"
-	MTLS           = "mtls"
-	KCP            = "kcp"
-	SSH            = "ssh"
-	HTTP2          = "http2"
+	TCP  Network = "tcp"
+	QUIC         = "quic"
+	WS           = "ws"
+	KCP          = "kcp"
+	SSH          = "ssh"
+	NB           = "nb"
 )
 
 type XAddr struct {
-	protocol Protocol
-	addr     string
+	network Network
+	addr    string
 }
 
 func (xaddr *XAddr) Network() string {
-	return xaddr.protocol
+	return xaddr.network
 }
 
 func (xaddr *XAddr) String() string {
@@ -41,22 +35,22 @@ type Dialer func(ctx context.Context, addr string) (conn Conn, err error)
 type ListenerBuilder func(ctx context.Context, addr string) (lis Listener, err error)
 
 var (
-	dialers   = make(map[Protocol]Dialer)
-	listeners = make(map[Protocol]ListenerBuilder)
+	dialers   = make(map[Network]Dialer)
+	listeners = make(map[Network]ListenerBuilder)
 )
 
-func RegisterDialer(protocol Protocol, dialer Dialer) {
+func RegisterDialer(protocol Network, dialer Dialer) {
 	if _, ok := dialers[protocol]; !ok {
 		dialers[protocol] = dialer
 	}
 }
 
-func GetDialer(protocol Protocol) Dialer {
+func GetDialer(protocol Network) Dialer {
 	dialer := dialers[protocol]
 	return dialer
 }
 
-func RegisterListenerBuilder(protocol Protocol, builder ListenerBuilder) {
+func RegisterListenerBuilder(protocol Network, builder ListenerBuilder) {
 	if _, ok := listeners[protocol]; !ok {
 		listeners[protocol] = builder
 	}
@@ -76,23 +70,23 @@ type Listener interface {
 
 type Conn interface {
 	net.Conn
-	SupportMux() bool
+	//SupportMux() bool
 }
 
-func Listen(ctx context.Context, protocol Protocol, addr string) (lis Listener, err error) {
+func Listen(ctx context.Context, protocol Network, addr string) (lis Listener, err error) {
 	if builder, ok := listeners[protocol]; ok {
 		lis, err = builder(ctx, addr)
 		return
 	}
-	err = errors.New("unsupported protocol " + protocol)
+	err = errors.New("unsupported network " + protocol)
 	return
 }
 
-func Dial(ctx context.Context, protocol Protocol, addr string) (conn Conn, err error) {
+func Dial(ctx context.Context, protocol Network, addr string) (conn Conn, err error) {
 	if dialer, ok := dialers[protocol]; ok {
 		conn, err = dialer(ctx, addr)
 		return
 	}
-	err = errors.New("unsupported protocol " + protocol)
+	err = errors.New("unsupported network " + protocol)
 	return
 }
