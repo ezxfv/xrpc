@@ -9,39 +9,61 @@ const (
 	Client EndPoint = "client"
 )
 
+func newDefaultMetrics(point EndPoint) *DefaultMetrics {
+	if point == Client {
+		return &DefaultMetrics{
+			startedCounter: prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "xrpc_client_started_total",
+					Help: "Total number of RPCs started on the client.",
+				}, []string{"xrpc_type", "xrpc_service", "xrpc_method"}),
+			handledCounter: prometheus.NewCounterVec(
+				prometheus.CounterOpts{
+					Name: "xrpc_client_handled_total",
+					Help: "Total number of RPCs completed on the client, regardless of success or failure.",
+				}, []string{"xrpc_type", "xrpc_service", "xrpc_method", "xrpc_code"}),
+			handledHistogram: prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Name:    "xrpc_client_handling_seconds",
+					Help:    "Histogram of response latency (seconds) of gRPC that had been application-level handled by the client.",
+					Buckets: prometheus.DefBuckets,
+				}, []string{"xrpc_type", "xrpc_service", "xrpc_method"}),
+		}
+	}
+	return &DefaultMetrics{
+		startedCounter: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "xrpc_server_started_total",
+				Help: "Total number of RPCs started on the server.",
+			}, []string{"xrpc_type", "xrpc_service", "xrpc_method"}),
+		handledCounter: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "xrpc_server_handled_total",
+				Help: "Total number of RPCs completed on the server, regardless of success or failure.",
+			}, []string{"xrpc_type", "xrpc_service", "xrpc_method", "xrpc_code"}),
+		handledHistogram: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "xrpc_server_handling_seconds",
+				Help:    "Histogram of response latency (seconds) of gRPC that had been application-level handled by the server.",
+				Buckets: prometheus.DefBuckets,
+			}, []string{"xrpc_type", "xrpc_service", "xrpc_method"}),
+	}
+}
+
 type DefaultMetrics struct {
-	promEndPoint EndPoint
-
-	// 标准的数值上报，上报进程级别的计数类型测量数据
-	startedCounter *prometheus.CounterVec
-	// 服务端数值上报，上报作为Server时的计数类型测量数据
-	serverHandledCounter *prometheus.CounterVec
-	// 客户端数值上报，上报作为Client时的计数类型测量数据
-	clientHandledCounter *prometheus.CounterVec
-
-	serverHandledHistogram *prometheus.HistogramVec
-
-	clientHandledHistogram *prometheus.HistogramVec
+	startedCounter   *prometheus.CounterVec
+	handledCounter   *prometheus.CounterVec
+	handledHistogram *prometheus.HistogramVec
 }
 
 func (dm *DefaultMetrics) Describe(ch chan<- *prometheus.Desc) {
 	dm.startedCounter.Describe(ch)
-	if dm.promEndPoint == Server {
-		dm.serverHandledCounter.Describe(ch)
-		dm.serverHandledHistogram.Describe(ch)
-		return
-	}
-	dm.clientHandledCounter.Describe(ch)
-	dm.clientHandledHistogram.Describe(ch)
+	dm.handledCounter.Describe(ch)
+	dm.handledHistogram.Describe(ch)
 }
 
 func (dm *DefaultMetrics) Collect(ch chan<- prometheus.Metric) {
 	dm.startedCounter.Collect(ch)
-	if dm.promEndPoint == Server {
-		dm.serverHandledCounter.Collect(ch)
-		dm.serverHandledHistogram.Collect(ch)
-		return
-	}
-	dm.clientHandledCounter.Collect(ch)
-	dm.clientHandledHistogram.Collect(ch)
+	dm.handledCounter.Collect(ch)
+	dm.handledHistogram.Collect(ch)
 }

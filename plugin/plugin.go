@@ -4,327 +4,410 @@ import (
 	"context"
 	"errors"
 	"plugin"
+	"sync"
 
-	"github.com/edenzhong7/xrpc/pkg/common"
-	"github.com/edenzhong7/xrpc/pkg/log"
 	"github.com/edenzhong7/xrpc/pkg/net"
 
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/grpc"
 )
 
-var (
-	allPlugins map[string]Plugin
-)
-
-type Message = proto.Message
-
-type Plugin interface {
-	Name() string
-	Init(ctx context.Context) error
-	SetLogger(logger log.Logger)
-
-	OnConnect(ctx context.Context) error
-	OnSend(ctx context.Context) error
-	OnRecv(ctx context.Context) error
-	OnDisconnect(ctx context.Context) error
-
-	Destroy()
-}
+type Plugin interface{}
 
 //PluginContainer represents a plugin container that defines all methods to manage plugins.
 //And it also defines all extension points.
 type Container interface {
 	Add(plugin Plugin)
 	Remove(plugin Plugin)
-	All() []Plugin
 
-	DoRegister(name string, rcvr interface{}, metadata string) error
+	DoRegisterService(sd *grpc.ServiceDesc, ss interface{}) error
+	DoRegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error
 	DoRegisterFunction(serviceName, fname string, fn interface{}, metadata string) error
-	DoUnregister(name string) error
 
-	DoPostConnAccept(net.Conn) (net.Conn, bool)
-	DoPostConnClose(net.Conn) bool
+	DoConnect(net.Conn) (net.Conn, bool)
+	DoDisconnect(net.Conn) bool
 
+	DoOpenStream(ctx context.Context, conn net.Conn) (context.Context, error)
+	DoCloseStream(ctx context.Context, conn net.Conn) (context.Context, error)
+
+	DoHandle(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error)
+
+	IOContainer
+}
+
+type IOContainer interface {
 	DoPreReadRequest(ctx context.Context) error
-	DoPostReadRequest(ctx context.Context, r Message, e error) error
+	DoPostReadRequest(ctx context.Context, r interface{}, e error) error
 
-	DoPreHandleRequest(ctx context.Context, req Message) error
-
-	DoPreWriteResponse(context.Context, Message, Message) error
-	DoPostWriteResponse(context.Context, Message, Message, error) error
-
-	DoPreWriteRequest(ctx context.Context) error
-	DoPostWriteRequest(ctx context.Context, r Message, e error) error
+	DoPreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error
+	DoPostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error
 }
 
 type (
-	//// RegisterPlugin is .
-	RegisterPlugin interface {
-		Register(name string, rcvr interface{}, metadata string) error
-		Unregister(name string) error
+	RegisterServicePlugin interface {
+		RegisterService(sd *grpc.ServiceDesc, ss interface{}) error
 	}
 
-	// RegisterFunctionPlugin is .
+	RegisterCustomServicePlugin interface {
+		RegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error
+	}
+
 	RegisterFunctionPlugin interface {
 		RegisterFunction(serviceName, fname string, fn interface{}, metadata string) error
 	}
 
-	// PostConnAcceptPlugin represents connection accept plugin.
-	// if returns false, it means subsequent IPostConnAcceptPlugins should not contiune to handle this conn
-	// and this conn has been closed.
-	PostConnAcceptPlugin interface {
-		HandleConnAccept(net.Conn) (net.Conn, bool)
+	ConnectPlugin interface {
+		Connect(conn net.Conn) (net.Conn, bool)
 	}
 
-	// PostConnClosePlugin represents client connection close plugin.
-	PostConnClosePlugin interface {
-		HandleConnClose(net.Conn) bool
+	DisconnectPlugin interface {
+		Disconnect(conn net.Conn) bool
 	}
 
-	//PreReadRequestPlugin represents .
+	OpenStreamPlugin interface {
+		OpenStream(ctx context.Context, conn net.Conn) (context.Context, error)
+	}
+
+	CloseStreamPlugin interface {
+		CloseStream(ctx context.Context, conn net.Conn) (context.Context, error)
+	}
+
 	PreReadRequestPlugin interface {
 		PreReadRequest(ctx context.Context) error
 	}
 
-	//PostReadRequestPlugin represents .
 	PostReadRequestPlugin interface {
-		PostReadRequest(ctx context.Context, r Message, e error) error
+		PostReadRequest(ctx context.Context, r interface{}, e error) error
 	}
 
-	//PreHandleRequestPlugin represents .
-	PreHandleRequestPlugin interface {
-		PreHandleRequest(ctx context.Context, r Message) error
+	PreHandlePlugin interface {
+		PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error)
 	}
 
-	//PreWriteResponsePlugin represents .
+	PostHandlePlugin interface {
+		PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error)
+	}
+
 	PreWriteResponsePlugin interface {
-		PreWriteResponse(context.Context, Message, Message) error
+		PreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error
 	}
 
-	//PostWriteResponsePlugin represents .
 	PostWriteResponsePlugin interface {
-		PostWriteResponse(context.Context, Message, Message, error) error
+		PostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error
 	}
 
-	//PreWriteRequestPlugin represents .
-	PreWriteRequestPlugin interface {
-		PreWriteRequest(ctx context.Context) error
-	}
-
-	//PostWriteRequestPlugin represents .
-	PostWriteRequestPlugin interface {
-		PostWriteRequest(ctx context.Context, r Message, e error) error
+	AlmightyPlugin interface {
+		RegisterServicePlugin
+		RegisterCustomServicePlugin
+		RegisterFunctionPlugin
+		ConnectPlugin
+		DisconnectPlugin
+		OpenStreamPlugin
+		CloseStreamPlugin
+		PreReadRequestPlugin
+		PostReadRequestPlugin
+		PreHandlePlugin
+		PostHandlePlugin
+		PreWriteResponsePlugin
+		PostWriteResponsePlugin
 	}
 )
 
+func NewPluginContainer() Container {
+	pc := &pluginContainer{
+		plugins: map[Plugin]bool{},
+		rsp:     map[RegisterServicePlugin]bool{},
+		rcsp:    map[RegisterCustomServicePlugin]bool{},
+		rfp:     map[RegisterFunctionPlugin]bool{},
+		cp:      map[ConnectPlugin]bool{},
+		dp:      map[DisconnectPlugin]bool{},
+		osp:     map[OpenStreamPlugin]bool{},
+		csp:     map[CloseStreamPlugin]bool{},
+		prrp:    map[PreReadRequestPlugin]bool{},
+		porrp:   map[PostReadRequestPlugin]bool{},
+		php:     map[PreHandlePlugin]bool{},
+		pohp:    map[PostHandlePlugin]bool{},
+		pwrp:    map[PreWriteResponsePlugin]bool{},
+		powrp:   map[PostWriteResponsePlugin]bool{},
+
+		mu: &sync.Mutex{},
+	}
+	return pc
+}
+
+//
+//var (
+//	nilPlugins = []reflect.Type{
+//		reflect.TypeOf(Plugin(nil)),
+//		reflect.TypeOf(RegisterServicePlugin(nil)),
+//		reflect.TypeOf(RegisterCustomServicePlugin(nil)),
+//		reflect.TypeOf(RegisterFunctionPlugin(nil)),
+//		reflect.TypeOf(ConnectPlugin(nil)),
+//		reflect.TypeOf(DisconnectPlugin(nil)),
+//		reflect.TypeOf(OpenStreamPlugin(nil)),
+//		reflect.TypeOf(CloseStreamPlugin(nil)),
+//		reflect.TypeOf(PreReadRequestPlugin(nil)),
+//		reflect.TypeOf(PostReadRequestPlugin(nil)),
+//		reflect.TypeOf(PreHandlePlugin(nil)),
+//		reflect.TypeOf(PostHandlePlugin(nil)),
+//		reflect.TypeOf(PreWriteResponsePlugin(nil)),
+//		reflect.TypeOf(PostWriteResponsePlugin(nil)),
+//	}
+//)
+
 // pluginContainer implements PluginContainer interface.
 type pluginContainer struct {
-	plugins []Plugin
+	plugins map[Plugin]bool
+	rsp     map[RegisterServicePlugin]bool
+	rcsp    map[RegisterCustomServicePlugin]bool
+	rfp     map[RegisterFunctionPlugin]bool
+	cp      map[ConnectPlugin]bool
+	dp      map[DisconnectPlugin]bool
+	osp     map[OpenStreamPlugin]bool
+	csp     map[CloseStreamPlugin]bool
+	prrp    map[PreReadRequestPlugin]bool
+	porrp   map[PostReadRequestPlugin]bool
+	php     map[PreHandlePlugin]bool
+	pohp    map[PostHandlePlugin]bool
+	pwrp    map[PreWriteResponsePlugin]bool
+	powrp   map[PostWriteResponsePlugin]bool
+
+	mu *sync.Mutex
 }
 
 // Add adds a plugin.
-func (p *pluginContainer) Add(plugin Plugin) {
-	p.plugins = append(p.plugins, plugin)
-}
-
-// Remove removes a plugin by it's name.
-func (p *pluginContainer) Remove(plugin Plugin) {
-	if p.plugins == nil {
+func (pc *pluginContainer) Add(plugin Plugin) {
+	if plugin == nil {
 		return
 	}
 
-	plugins := make([]Plugin, 0, len(p.plugins))
-	for _, p := range p.plugins {
-		if p != plugin {
-			plugins = append(plugins, p)
-		}
-	}
+	pc.plugins[plugin] = true
 
-	p.plugins = plugins
+	if p, ok := plugin.(RegisterServicePlugin); ok {
+		pc.rsp[p] = true
+	}
+	if p, ok := plugin.(RegisterCustomServicePlugin); ok {
+		pc.rcsp[p] = true
+	}
+	if p, ok := plugin.(RegisterFunctionPlugin); ok {
+		pc.rfp[p] = true
+	}
+	if p, ok := plugin.(ConnectPlugin); ok {
+		pc.cp[p] = true
+	}
+	if p, ok := plugin.(DisconnectPlugin); ok {
+		pc.dp[p] = true
+	}
+	if p, ok := plugin.(OpenStreamPlugin); ok {
+		pc.osp[p] = true
+	}
+	if p, ok := plugin.(CloseStreamPlugin); ok {
+		pc.csp[p] = true
+	}
+	if p, ok := plugin.(PreReadRequestPlugin); ok {
+		pc.prrp[p] = true
+	}
+	if p, ok := plugin.(PostReadRequestPlugin); ok {
+		pc.porrp[p] = true
+	}
+	if p, ok := plugin.(PreHandlePlugin); ok {
+		pc.php[p] = true
+	}
+	if p, ok := plugin.(PostHandlePlugin); ok {
+		pc.pohp[p] = true
+	}
+	if p, ok := plugin.(PreWriteResponsePlugin); ok {
+		pc.pwrp[p] = true
+	}
+	if p, ok := plugin.(PostWriteResponsePlugin); ok {
+		pc.powrp[p] = true
+	}
 }
 
-func (p *pluginContainer) All() []Plugin {
-	return p.plugins
+// Remove removes a plugin by it's name.
+func (pc *pluginContainer) Remove(plugin Plugin) {
+	if plugin == nil {
+		return
+	}
+	delete(pc.plugins, plugin)
+
+	if p, ok := plugin.(RegisterServicePlugin); ok {
+		delete(pc.rsp, p)
+	}
+	if p, ok := plugin.(RegisterCustomServicePlugin); ok {
+		delete(pc.rcsp, p)
+	}
+	if p, ok := plugin.(RegisterFunctionPlugin); ok {
+		delete(pc.rfp, p)
+	}
+	if p, ok := plugin.(ConnectPlugin); ok {
+		delete(pc.cp, p)
+	}
+	if p, ok := plugin.(DisconnectPlugin); ok {
+		delete(pc.dp, p)
+	}
+	if p, ok := plugin.(OpenStreamPlugin); ok {
+		delete(pc.osp, p)
+	}
+	if p, ok := plugin.(CloseStreamPlugin); ok {
+		delete(pc.csp, p)
+	}
+	if p, ok := plugin.(PreReadRequestPlugin); ok {
+		delete(pc.prrp, p)
+	}
+	if p, ok := plugin.(PostReadRequestPlugin); ok {
+		delete(pc.porrp, p)
+	}
+	if p, ok := plugin.(PreHandlePlugin); ok {
+		delete(pc.php, p)
+	}
+	if p, ok := plugin.(PostHandlePlugin); ok {
+		delete(pc.pohp, p)
+	}
+	if p, ok := plugin.(PreWriteResponsePlugin); ok {
+		delete(pc.pwrp, p)
+	}
+	if p, ok := plugin.(PostWriteResponsePlugin); ok {
+		delete(pc.powrp, p)
+	}
 }
 
-// DoRegister invokes DoRegister plugin.
-func (p *pluginContainer) DoRegister(name string, rcvr interface{}, metadata string) error {
-	var es []error
-	for _, rp := range p.plugins {
-		if p, ok := rp.(RegisterPlugin); ok {
-			err := p.Register(name, rcvr, metadata)
-			if err != nil {
-				es = append(es, err)
-			}
+func (pc *pluginContainer) DoRegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
+	var err error
+	for p := range pc.rsp {
+		err = p.RegisterService(sd, ss)
+		if err != nil {
+			break
 		}
 	}
-
-	if len(es) > 0 {
-		return es[0]
-	}
-	return nil
+	return err
 }
 
-// DoRegisterFunction invokes DoRegisterFunction plugin.
-func (p *pluginContainer) DoRegisterFunction(serviceName, fname string, fn interface{}, metadata string) error {
-	var es []error
-	for _, rp := range p.plugins {
-		if p, ok := rp.(RegisterFunctionPlugin); ok {
-			err := p.RegisterFunction(serviceName, fname, fn, metadata)
-			if err != nil {
-				es = append(es, err)
-			}
+func (pc *pluginContainer) DoRegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error {
+	var err error
+	for p := range pc.rcsp {
+		err = p.RegisterCustomService(sd, ss, metadata)
+		if err != nil {
+			break
 		}
 	}
-
-	if len(es) > 0 {
-		return es[0]
-	}
-	return nil
+	return err
 }
 
-// DoUnregister invokes RegisterXPlugin.
-func (p *pluginContainer) DoUnregister(name string) error {
-	var es []error
-	for _, rp := range p.plugins {
-		if p, ok := rp.(RegisterPlugin); ok {
-			err := p.Unregister(name)
-			if err != nil {
-				es = append(es, err)
-			}
+func (pc *pluginContainer) DoRegisterFunction(serviceName, fname string, fn interface{}, metadata string) error {
+	var err error
+	for p := range pc.rfp {
+		err = p.RegisterFunction(serviceName, fname, fn, metadata)
+		if err != nil {
+			break
 		}
 	}
-
-	if len(es) > 0 {
-		return es[0]
-	}
-	return nil
+	return err
 }
 
-//DoPostConnAccept handles accepted conn
-func (p *pluginContainer) DoPostConnAccept(conn net.Conn) (net.Conn, bool) {
-	var flag bool
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PostConnAcceptPlugin); ok {
-			conn, flag = p.HandleConnAccept(conn)
-			if !flag { //interrupt
-				conn.Close()
-				return conn, false
-			}
+func (pc *pluginContainer) DoConnect(conn net.Conn) (net.Conn, bool) {
+	var ok bool
+	for p := range pc.cp {
+		conn, ok = p.Connect(conn)
+		if !ok {
+			break
 		}
 	}
-	return conn, true
+	return conn, ok
 }
 
-//DoPostConnClose handles closed conn
-func (p *pluginContainer) DoPostConnClose(conn net.Conn) bool {
-	var flag bool
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PostConnClosePlugin); ok {
-			flag = p.HandleConnClose(conn)
-			if !flag {
-				return false
-			}
+func (pc *pluginContainer) DoDisconnect(conn net.Conn) bool {
+	var ok bool
+	for p := range pc.cp {
+		conn, ok = p.Connect(conn)
+		if !ok {
+			break
 		}
 	}
-	return true
+	return ok
 }
 
-// DoPreReadRequest invokes PreReadRequest plugin.
-func (p *pluginContainer) DoPreReadRequest(ctx context.Context) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PreReadRequestPlugin); ok {
-			err := p.PreReadRequest(ctx)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoOpenStream(ctx context.Context, conn net.Conn) (context.Context, error) {
+	var err error
+	for p := range pc.osp {
+		ctx, err = p.OpenStream(ctx, conn)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return ctx, err
 }
 
-// DoPostReadRequest invokes PostReadRequest plugin.
-func (p *pluginContainer) DoPostReadRequest(ctx context.Context, r Message, e error) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PostReadRequestPlugin); ok {
-			err := p.PostReadRequest(ctx, r, e)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoCloseStream(ctx context.Context, conn net.Conn) (context.Context, error) {
+	var err error
+	for p := range pc.csp {
+		ctx, err = p.CloseStream(ctx, conn)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return ctx, err
 }
 
-// DoPreHandleRequest invokes PreHandleRequest plugin.
-func (p *pluginContainer) DoPreHandleRequest(ctx context.Context, r Message) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PreHandleRequestPlugin); ok {
-			err := p.PreHandleRequest(ctx, r)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoPreReadRequest(ctx context.Context) error {
+	var err error
+	for p := range pc.prrp {
+		err = p.PreReadRequest(ctx)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return err
 }
 
-// DoPreWriteResponse invokes PreWriteResponse plugin.
-func (p *pluginContainer) DoPreWriteResponse(ctx context.Context, req Message, res Message) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PreWriteResponsePlugin); ok {
-			err := p.PreWriteResponse(ctx, req, res)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoPostReadRequest(ctx context.Context, r interface{}, e error) error {
+	var err error
+	for p := range pc.porrp {
+		err = p.PostReadRequest(ctx, r, e)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return err
 }
 
-// DoPostWriteResponse invokes PostWriteResponse plugin.
-func (p *pluginContainer) DoPostWriteResponse(ctx context.Context, req Message, resp Message, e error) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PostWriteResponsePlugin); ok {
-			err := p.PostWriteResponse(ctx, req, resp, e)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	for p := range pc.php {
+		ctx, err = p.PreHandle(ctx, req, info)
+		if err != nil {
+			break
 		}
 	}
-	return nil
+	resp, err = handler(ctx, handler)
+	e := err
+	for p := range pc.pohp {
+		ctx, err = p.PostHandle(ctx, req, resp, info, e)
+		if err != nil {
+			break
+		}
+	}
+	return ctx, err
 }
 
-// DoPreWriteRequest invokes PreWriteRequest plugin.
-func (p *pluginContainer) DoPreWriteRequest(ctx context.Context) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PreWriteRequestPlugin); ok {
-			err := p.PreWriteRequest(ctx)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoPreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error {
+	var err error
+	for p := range pc.pwrp {
+		err = p.PreWriteResponse(ctx, req, resp)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return err
 }
 
-// DoPostWriteRequest invokes PostWriteRequest plugin.
-func (p *pluginContainer) DoPostWriteRequest(ctx context.Context, r Message, e error) error {
-	for i := range p.plugins {
-		if p, ok := p.plugins[i].(PostWriteRequestPlugin); ok {
-			err := p.PostWriteRequest(ctx, r, e)
-			if err != nil {
-				return err
-			}
+func (pc *pluginContainer) DoPostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error {
+	var err error
+	for p := range pc.powrp {
+		err = p.PostWriteResponse(ctx, req, resp, e)
+		if err != nil {
+			break
 		}
 	}
-
-	return nil
+	return err
 }
 
 func LoadPluginDLL(ctx context.Context, libPath string) (p Plugin, err error) {
@@ -342,71 +425,5 @@ func LoadPluginDLL(ctx context.Context, libPath string) (p Plugin, err error) {
 		return nil, errors.New("unexpected builder " + builderName)
 	}
 	p = builder(ctx)
-	if !ok {
-		return nil, errors.New("already loaded plugin: " + p.Name())
-	}
-	log.Debug("loaded Plugin " + p.Name() + " from dll...")
-	RegisterXPlugin(p)
-	return
-}
-
-func init() {
-	allPlugins = map[string]Plugin{}
-}
-
-func RegisterXPlugin(p Plugin) {
-	if _, ok := allPlugins[p.Name()]; !ok {
-		allPlugins[p.Name()] = p
-	}
-}
-
-func PickPlugin(name string) Plugin {
-	return allPlugins[name]
-}
-
-func PickSomePlugins(names []string) []Plugin {
-	var plugins []Plugin
-	for _, name := range names {
-		if p, ok := allPlugins[name]; ok {
-			plugins = append(plugins, p)
-		}
-	}
-	return plugins
-}
-
-// TODO 应用插件
-func OnConnect(ctx context.Context, plugins []Plugin, handler interface{}, args ...interface{}) (result []interface{}, err error) {
-	var newHandler = handler
-	for _, m := range plugins {
-		newHandler = m.OnSend(ctx)
-	}
-	result, err = common.Call(newHandler, newHandler)
-	return
-}
-
-func OnDisconnect(ctx context.Context, plugins []Plugin, handler interface{}, args ...interface{}) (result []interface{}, err error) {
-	var newHandler = handler
-	for _, m := range plugins {
-		newHandler = m.OnSend(ctx)
-	}
-	result, err = common.Call(newHandler, newHandler)
-	return
-}
-
-func OnSend(ctx context.Context, plugins []Plugin, handler interface{}, args ...interface{}) (result []interface{}, err error) {
-	var newHandler = handler
-	for _, m := range plugins {
-		newHandler = m.OnSend(ctx)
-	}
-	result, err = common.Call(newHandler, newHandler)
-	return
-}
-
-func OnRecv(ctx context.Context, plugins []Plugin, handler interface{}, args ...interface{}) (result []interface{}, err error) {
-	var newHandler = handler
-	for _, m := range plugins {
-		newHandler = m.OnSend(ctx)
-	}
-	result, err = common.Call(newHandler, newHandler)
 	return
 }

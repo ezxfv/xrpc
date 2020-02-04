@@ -2,46 +2,94 @@ package log
 
 import (
 	"context"
+	"os"
 
 	"github.com/edenzhong7/xrpc/pkg/log"
+	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/edenzhong7/xrpc/plugin"
+
+	"google.golang.org/grpc"
 )
 
-func init() {
-	plugin.RegisterXPlugin(&logPlugin{})
+func New() plugin.Plugin {
+	return &logPlugin{
+		l: log.NewSimpleDefaultLogger(os.Stdout, log.DEBUG, "log_plugin", true),
+	}
 }
 
 type logPlugin struct {
+	l log.Logger
 }
 
-func (p *logPlugin) Name() string {
-	return "log"
+func (p *logPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
+	var methods []string
+	for _, m := range sd.Methods {
+		methods = append(methods, m.MethodName)
+	}
+	p.l.Debugf("Register Service %s: %#v\n", sd.ServiceName, methods)
+	return nil
 }
 
-func (p *logPlugin) Init(ctx context.Context) error {
-	panic("implement me")
+func (p *logPlugin) RegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error {
+	var methods []string
+	for _, m := range sd.Methods {
+		methods = append(methods, m.MethodName)
+	}
+	p.l.Debugf("Register Custom Service %s: %#v, metadata:%s\n", sd.ServiceName, methods, metadata)
+	return nil
 }
 
-func (p *logPlugin) SetLogger(logger log.Logger) {
-	panic("implement me")
+func (p *logPlugin) RegisterFunction(serviceName, fname string, fn interface{}, metadata string) error {
+	p.l.Debugf("Register Function [%s] -> Service [%s], metadata:%s\n", fname, serviceName, metadata)
+	return nil
 }
 
-func (p *logPlugin) OnConnect(ctx context.Context) error {
-	panic("implement me")
+func (p *logPlugin) Connect(conn net.Conn) (net.Conn, bool) {
+	p.l.Debugf("Accept connect from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return conn, true
 }
 
-func (p *logPlugin) OnSend(ctx context.Context) error {
-	panic("implement me")
+func (p *logPlugin) Disconnect(conn net.Conn) bool {
+	p.l.Debugf("Disconnect to %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return true
 }
 
-func (p *logPlugin) OnRecv(ctx context.Context) error {
-	panic("implement me")
+func (p *logPlugin) OpenStream(ctx context.Context, conn net.Conn) error {
+	p.l.Debugf("Open stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return nil
 }
 
-func (p *logPlugin) OnDisconnect(ctx context.Context) error {
-	panic("implement me")
+func (p *logPlugin) CloseStream(ctx context.Context, conn net.Conn) error {
+	p.l.Debugf("Close stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return nil
 }
 
-func (p *logPlugin) Destroy() {
-	panic("implement me")
+func (p *logPlugin) PreReadRequest(ctx context.Context) error {
+	p.l.Debugf("PreReadRequest\n")
+	return nil
+}
+
+func (p *logPlugin) PostReadRequest(ctx context.Context, r interface{}, e error) error {
+	p.l.Debugf("PostReadRequest, err:%#v\n", e)
+	return nil
+}
+
+func (p *logPlugin) PreHandle(ctx context.Context, r interface{}) error {
+	p.l.Debugf("PreHandle\n")
+	return nil
+}
+
+func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, e error) error {
+	p.l.Debugf("PostHandle\n")
+	return nil
+}
+
+func (p *logPlugin) PreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error {
+	p.l.Debugf("PreWriteResponse\n")
+	return nil
+}
+
+func (p *logPlugin) PostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error {
+	p.l.Debugf("PostWriteResponse\n")
+	return nil
 }

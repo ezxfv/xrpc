@@ -2,44 +2,49 @@ package prom
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/edenzhong7/xrpc/pkg/codes"
 	"github.com/edenzhong7/xrpc/plugin"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
-
-func init() {
-	plugin.RegisterBuilder(&builder{})
-}
 
 const (
 	Name = "prom"
 )
 
-type builder struct{}
-
-func (b *builder) Name() string {
-	return Name
+func New() plugin.Plugin {
+	p := &promPlugin{
+		metrics: newDefaultMetrics(Server),
+	}
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(p.metrics)
+	go StartServe("/metrics", 13140, reg)
+	return p
 }
 
-func (b *builder) NewClientMiddleware() plugin.ClientMiddleware {
-	panic("implement me")
+type promPlugin struct {
+	metrics *DefaultMetrics
 }
 
-func (b *builder) NewServerMiddleware() plugin.ServerMiddleware {
-	panic("implement me")
+func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
+	reporter := newDefaultReporter(p.metrics, "unary", info.FullMethod)
+	ctx = context.WithValue(ctx, "reporter", reporter)
+	return ctx, nil
 }
 
-type promMiddleware struct{}
-
-func (m *promMiddleware) Name() string {
-	return "prom"
-}
-func (m *promMiddleware) Handle(ctx context.Context, handler interface{}, args ...interface{}) (newHandler interface{}) {
-	panic("implement me")
+func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error) {
+	r, ok := ctx.Value("reporter").(*defaultReporter)
+	if !ok {
+		return ctx, errors.New("prom plugin PostHandle get reporter from ctx failed")
+	}
+	r.Handled(codes.CodeFromError(e))
+	return ctx, nil
 }
 
 // StartServe 在指定地址上开启prometheus http，未提供Gatherer的情况下使用默认Gatherer
