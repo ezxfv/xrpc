@@ -9,6 +9,8 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/edenzhong7/xrpc/plugin"
+
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	"github.com/edenzhong7/xrpc/pkg/net"
 
@@ -39,6 +41,8 @@ type Stream interface {
 	// recvMsg on the same stream at the same time.
 	// But it is not safe to call RecvMsg on the same stream in different goroutines.
 	RecvMsg(m interface{}) error
+
+	Close() error
 }
 
 type ClientStream interface {
@@ -87,6 +91,10 @@ type clientStream struct {
 	cp     encoding.Compressor
 }
 
+func (cs *clientStream) Close() error {
+	return cs.stream.Close()
+}
+
 func (cs *clientStream) Context() context.Context {
 	return cs.ctx
 }
@@ -130,8 +138,6 @@ func recv(conn io.Reader) (pf payloadFormat, msg []byte, err error) {
 	if length == 0 {
 		return pf, nil, nil
 	}
-	// TODO(bradfitz,zhaoq): garbage. reuse buffer after proto decoding instead
-	// of making it for each message:
 	msg = make([]byte, int(length))
 	if _, err := conn.Read(msg); err != nil {
 		if err == io.EOF {
@@ -191,13 +197,27 @@ type serverStream struct {
 
 	codec encoding.Codec
 	cp    encoding.Compressor
+
+	sc plugin.IOContainer
+}
+
+func (ss *serverStream) Close() error {
+	return ss.stream.Close()
 }
 
 func (ss *serverStream) Context() context.Context {
 	return ss.ctx
 }
 
-func (ss *serverStream) SendMsg(m interface{}) error {
+func (ss *serverStream) SendMsg(m interface{}) (err error) {
+	// TODO DoPreWriteResponse
+	if err = ss.sc.DoPreWriteResponse(ss.ctx, nil, m); err != nil {
+		return err
+	}
+	defer func() {
+		// TODO DoPostWriteResponse
+		err = ss.sc.DoPostWriteResponse(ss.ctx, nil, m, err)
+	}()
 	data, err := ss.codec.Marshal(m)
 	if err != nil {
 		return err
@@ -221,10 +241,14 @@ func (ss *serverStream) SendMsg(m interface{}) error {
 	if _, err = ss.stream.Write(payload); err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 func (ss *serverStream) RecvMsg(m interface{}) error {
+	// TODO DoPreReadRequest
+	if err := ss.sc.DoPreReadRequest(ss.ctx); err != nil {
+		return err
+	}
 	pf, msg, err := recv(ss.stream)
 	if err != nil {
 		return err
@@ -243,9 +267,11 @@ func (ss *serverStream) RecvMsg(m interface{}) error {
 		data = msg
 	}
 	if err = ss.codec.Unmarshal(data, m); err != nil {
-		return errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
+		err = errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message for %v", err))
 	}
-	return nil
+	// TODO DoPostReadRequest
+	err = ss.sc.DoPostReadRequest(ss.ctx, m, err)
+	return err
 }
 
 func (ss *serverStream) SetHeader(metadata.MD) error {

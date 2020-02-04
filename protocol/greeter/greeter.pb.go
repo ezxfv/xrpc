@@ -6,12 +6,11 @@ package greeter
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	xrpc "github.com/edenzhong7/xrpc"
 	codes "github.com/edenzhong7/xrpc/pkg/codes"
 	status "github.com/edenzhong7/xrpc/pkg/status"
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -113,16 +112,17 @@ func init() {
 func init() { proto.RegisterFile("greeter.proto", fileDescriptor_e585294ab3f34af5) }
 
 var fileDescriptor_e585294ab3f34af5 = []byte{
-	// 136 bytes of a gzipped FileDescriptorProto
+	// 145 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4d, 0x2f, 0x4a, 0x4d,
 	0x2d, 0x49, 0x2d, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x87, 0x72, 0x95, 0x94, 0xb8,
 	0x78, 0x3c, 0x52, 0x73, 0x72, 0xf2, 0x83, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0x4b, 0x84, 0x84, 0xb8,
 	0x58, 0xf2, 0x12, 0x73, 0x53, 0x25, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xc0, 0x6c, 0x25, 0x35,
 	0x2e, 0x2e, 0xa8, 0x9a, 0x82, 0x9c, 0x4a, 0x21, 0x09, 0x2e, 0xf6, 0xdc, 0xd4, 0xe2, 0xe2, 0xc4,
-	0x74, 0x98, 0x22, 0x18, 0xd7, 0xc8, 0x99, 0x8b, 0xdd, 0x1d, 0x62, 0xac, 0x90, 0x05, 0x17, 0x47,
+	0x74, 0x98, 0x22, 0x18, 0xd7, 0xa8, 0x8a, 0x8b, 0xdd, 0x1d, 0x62, 0xac, 0x90, 0x05, 0x17, 0x47,
 	0x70, 0x62, 0x25, 0x58, 0x97, 0x90, 0xa8, 0x1e, 0xcc, 0x6e, 0x64, 0x9b, 0xa4, 0x84, 0xd1, 0x85,
-	0x0b, 0x72, 0x2a, 0x95, 0x18, 0x92, 0xd8, 0xc0, 0x0e, 0x34, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff,
-	0xaf, 0x54, 0x26, 0xb5, 0xb1, 0x00, 0x00, 0x00,
+	0x0b, 0x72, 0x2a, 0x95, 0x18, 0x84, 0x4c, 0xb9, 0x58, 0x41, 0x3a, 0x33, 0x49, 0xd3, 0x96, 0xc4,
+	0x06, 0xf6, 0x97, 0x31, 0x20, 0x00, 0x00, 0xff, 0xff, 0x6f, 0x95, 0x6a, 0xd8, 0xe8, 0x00, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -139,6 +139,7 @@ const _ = xrpc.SupportPackageIsVersion4
 type GreeterClient interface {
 	// Sends a greeting
 	SayHello(ctx context.Context, in *HelloRequest, opts ...xrpc.CallOption) (*HelloReply, error)
+	SayHi(ctx context.Context, in *HelloRequest, opts ...xrpc.CallOption) (*HelloReply, error)
 }
 
 type greeterClient struct {
@@ -158,10 +159,20 @@ func (c *greeterClient) SayHello(ctx context.Context, in *HelloRequest, opts ...
 	return out, nil
 }
 
+func (c *greeterClient) SayHi(ctx context.Context, in *HelloRequest, opts ...xrpc.CallOption) (*HelloReply, error) {
+	out := new(HelloReply)
+	err := c.cc.Invoke(ctx, "/greeter.Greeter/SayHi", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GreeterServer is the server API for Greeter service.
 type GreeterServer interface {
 	// Sends a greeting
 	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
+	SayHi(context.Context, *HelloRequest) (*HelloReply, error)
 }
 
 // UnimplementedGreeterServer can be embedded to have forward compatible implementations.
@@ -170,6 +181,9 @@ type UnimplementedGreeterServer struct {
 
 func (*UnimplementedGreeterServer) SayHello(ctx context.Context, req *HelloRequest) (*HelloReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+}
+func (*UnimplementedGreeterServer) SayHi(ctx context.Context, req *HelloRequest) (*HelloReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SayHi not implemented")
 }
 
 func RegisterGreeterServer(s *xrpc.Server, srv GreeterServer) {
@@ -194,6 +208,24 @@ func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Greeter_SayHi_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HelloRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GreeterServer).SayHi(ctx, in)
+	}
+	info := &xrpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/greeter.Greeter/SayHi",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GreeterServer).SayHi(ctx, req.(*HelloRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Greeter_serviceDesc = xrpc.ServiceDesc{
 	ServiceName: "greeter.Greeter",
 	HandlerType: (*GreeterServer)(nil),
@@ -201,6 +233,10 @@ var _Greeter_serviceDesc = xrpc.ServiceDesc{
 		{
 			MethodName: "SayHello",
 			Handler:    _Greeter_SayHello_Handler,
+		},
+		{
+			MethodName: "SayHi",
+			Handler:    _Greeter_SayHi_Handler,
 		},
 	},
 	Streams:  []xrpc.StreamDesc{},

@@ -31,7 +31,7 @@ import (
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 )
 
-// Name is the name registered for the gzip compressor.
+// name is the name registered for the gzip compressor.
 const Name = "gzip"
 
 func init() {

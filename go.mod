@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.2
 	github.com/golang/snappy v0.0.1

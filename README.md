@@ -2,6 +2,7 @@
 A Simple RPC Framework
 
 ## Requirements
+- 支持protobuf + struct + function三种方式注册服务
 - 传输类型(tcp, kcp, ws, quic) + (tls, multiple stream)
 - 上层中间件(调用对应的handler function之前执行)
 - 底层插件(插件初始化/销毁， 连接建立/断开(如交换秘钥,协商压缩算法)+消息收/发后处理(加解密，解压缩))

@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/edenzhong7/xrpc/plugin"
-
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 
 	"github.com/edenzhong7/xrpc/pkg/net"
@@ -22,7 +20,6 @@ type ClientConn struct {
 	session     *smux.Session
 	conn        net.Conn
 	streamCache map[string]ClientStream
-	middlewares []plugin.ClientMiddleware
 }
 
 type CallOption struct {
@@ -45,7 +42,6 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 		session:     session,
 		conn:        conn,
 		streamCache: map[string]ClientStream{},
-		middlewares: nil,
 	}
 	return
 }
@@ -54,14 +50,7 @@ func (cc *ClientConn) Invoke(ctx context.Context, method string, args, reply int
 	handler := func() error {
 		return invoke(ctx, method, args, reply, cc, opts...)
 	}
-	for _, m := range cc.middlewares {
-		handler = m.Handle(ctx, handler).(func() error)
-	}
 	return handler()
-}
-
-func (cc *ClientConn) AddMiddleware(ms ...plugin.ClientMiddleware) {
-	cc.middlewares = append(cc.middlewares, ms...)
 }
 
 func genStreamKey(network net.Network, addr string, method string) string {

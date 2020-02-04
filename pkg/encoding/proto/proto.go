@@ -21,14 +21,15 @@
 package proto
 
 import (
-	"github.com/edenzhong7/xrpc/pkg/encoding"
 	"math"
 	"sync"
+
+	"github.com/edenzhong7/xrpc/pkg/encoding"
 
 	"github.com/golang/protobuf/proto"
 )
 
-// Name is the name registered for the proto compressor.
+// name is the name registered for the proto compressor.
 const Name = "proto"
 
 func init() {

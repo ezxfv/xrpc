@@ -2,8 +2,7 @@ package net
 
 import (
 	"context"
-
-	_ "github.com/lesismal/nbio"
+	//_ "github.com/lesismal/nbio"
 )
 
 func init() {

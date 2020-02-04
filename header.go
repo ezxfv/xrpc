@@ -42,6 +42,22 @@ func (sh *streamHeader) splitMethod() (service, method string) {
 	return
 }
 
+func getCodecArg(header *streamHeader) string {
+	c, ok := header.Args["codec"]
+	if !ok {
+		return "proto"
+	}
+	return c.(string)
+}
+
+func getCompressorArg(header *streamHeader) string {
+	c, ok := header.Args["compressor"]
+	if !ok {
+		return "gzip"
+	}
+	return c.(string)
+}
+
 // msgHeader returns a 5-byte header for the message being transmitted and the
 // payload, which is compData if non-nil or data otherwise.
 func msgHeader(data, compData []byte) (hdr []byte, payload []byte) {

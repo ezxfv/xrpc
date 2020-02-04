@@ -79,7 +79,7 @@ func CallerInfo(level ...int) string {
 	} else {
 		info = string(stack[:n])
 	}
-	//funcName := f.Name()[strings.LastIndex(f.Name(), ".")+1:]
+	//funcName := f.name()[strings.LastIndex(f.name(), ".")+1:]
 	funcName := ""
 	callerStack := strings.Split(info, "\n")[7]
 	left := strings.Index(callerStack, "(")
@@ -169,9 +169,9 @@ func (l *DefaultLogger) logAll(opt *levelOptions, s string) {
 		return
 	}
 	callerInfo := ""
-	if !(opt.Level == 1 || opt.Key == "Info" || opt.Level == 2 || opt.Key == "Warn") {
-		callerInfo = CallerInfo()
-	}
+	//if !(opt.Level == 1 || opt.Key == "Info" || opt.Level == 2 || opt.Key == "Warn") {
+	//	callerInfo = CallerInfo()
+	//}
 	// Log to all receivers
 	for _, r := range l.Receivers {
 		r.log(opt, callerInfo+s)

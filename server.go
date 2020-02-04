@@ -26,14 +26,14 @@ type UnaryServerInterceptor = grpc.UnaryServerInterceptor
 type UnaryHandler func(ctx context.Context, req interface{}) (interface{}, error)
 
 func NewServer() *Server {
+	pc := plugin.NewPluginContainer()
 	s := &Server{
-		m:           map[string]*service{},
-		mu:          &sync.Mutex{},
-		lis:         map[net.Listener]bool{},
-		conns:       map[net.Conn]bool{},
-		sessions:    map[*smux.Session]bool{},
-		middlewares: []plugin.ServerMiddleware{},
-		plugins:     map[string]plugin.Plugin{},
+		m:        map[string]*service{},
+		mu:       &sync.Mutex{},
+		lis:      map[net.Listener]bool{},
+		conns:    map[net.Conn]bool{},
+		sessions: map[*smux.Session]bool{},
+		pc:       pc,
 	}
 	return s
 }
@@ -55,11 +55,10 @@ type Server struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	lis         map[net.Listener]bool
-	conns       map[net.Conn]bool
-	sessions    map[*smux.Session]bool
-	middlewares []plugin.ServerMiddleware
-	plugins     map[string]plugin.Plugin
+	lis      map[net.Listener]bool
+	conns    map[net.Conn]bool
+	sessions map[*smux.Session]bool
+	pc       plugin.Container
 
 	mu       *sync.Mutex
 	cv       *sync.Cond
@@ -74,10 +73,22 @@ func (s *Server) Serve(lis net.Listener) error {
 	return nil
 }
 
+func (s *Server) SetPluginContainer(pc plugin.Container) {
+	s.pc = pc
+}
+
 func (s *Server) Start() {
 	for {
 		time.Sleep(time.Millisecond * 100)
 	}
+}
+
+func (s *Server) RegisterFunction(serviceName, fname string, fn interface{}, metadata string) {
+	// TODO DoRegisterFunction
+}
+
+func (s *Server) RegisterCustomService(sd *ServiceDesc, ss interface{}) {
+	// TODO DoRegisterCustomService
 }
 
 func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
@@ -87,10 +98,6 @@ func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 		grpclog.Fatalf("grpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
 	}
 	s.register(sd, ss)
-}
-
-func (s *Server) AddMiddleware(ms ...plugin.ServerMiddleware) {
-	s.middlewares = append(s.middlewares, ms...)
 }
 
 func (s *Server) register(sd *ServiceDesc, ss interface{}) {
@@ -117,6 +124,8 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 		srv.sd[d.StreamName] = d
 	}
 	s.m[sd.ServiceName] = srv
+	// TODO DoRegister
+	s.pc.DoRegisterService(sd, ss)
 }
 
 func (s *Server) listen(lis net.Listener) {
@@ -130,34 +139,14 @@ func (s *Server) listen(lis net.Listener) {
 		if err != nil || n != len(Preface) {
 			continue
 		}
-		if conn.SupportMux() {
-			session, err := smux.Server(conn, nil)
-			if err != nil {
-				continue
-			}
-			s.sessions[session] = true
-			go s.handleSession(session)
-		} else {
-			pf, data, err := recv(conn)
-			if err != nil {
-				return
-			}
-			ss := &serverStream{
-				stream: conn,
-				codec:  encoding.GetCodec("proto"),
-				cp:     encoding.GetCompressor("gzip"),
-			}
-			if pf == CmdHeader {
-				header := &streamHeader{}
-				err = json.Unmarshal(data, header)
-				if err != nil {
-					continue
-				}
-				ss.header = header
-				go s.processStream(s.ctx, ss, header)
-			}
+		session, err := smux.Server(conn, nil)
+		if err != nil {
+			continue
 		}
-
+		s.sessions[session] = true
+		// TODO DoConnect
+		s.pc.DoConnect(conn)
+		go s.handleSession(session)
 	}
 }
 
@@ -173,21 +162,27 @@ func (s *Server) handleSession(session *smux.Session) {
 		if err != nil {
 			return
 		}
-		ss := &serverStream{
-			stream: &streamConn{stream},
-			codec:  encoding.GetCodec("proto"),
-			cp:     encoding.GetCompressor("gzip"),
-		}
 		if pf == CmdHeader {
 			header := &streamHeader{}
 			err = json.Unmarshal(data, header)
 			if err != nil {
 				continue
 			}
+			ss := &serverStream{
+				stream: &streamConn{stream},
+				codec:  encoding.GetCodec(getCodecArg(header)),
+				cp:     encoding.GetCompressor(getCompressorArg(header)),
+			}
 			ss.header = header
+			// TODO DoOpenStream
+			if _, err = s.pc.DoOpenStream(context.Background(), stream); err != nil {
+				continue
+			}
 			go s.processStream(s.ctx, ss, header)
 		}
 	}
+	// TODO DoDisconnect
+	s.pc.DoDisconnect(nil)
 }
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
@@ -200,7 +195,9 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 	srv := s.m[service].server
 	desc := s.m[service].md[method]
 	for {
-		reply, err := desc.Handler(srv, ctx, stream.RecvMsg, nil)
+		newCtx := ctx
+		var err error
+		reply, err := desc.Handler(srv, newCtx, stream.RecvMsg, s.pc.DoHandle)
 		if err != nil {
 			break
 		}
@@ -208,4 +205,6 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 			break
 		}
 	}
+	// TODO DoCloseStream
+	s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
 }

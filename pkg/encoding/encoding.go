@@ -20,7 +20,7 @@ type Compressor interface {
 	// uncompressed data via the returned io.Reader.  If an error occurs while
 	// initializing the decompressor, that error is returned instead.
 	Decompress(r io.Reader) (io.Reader, error)
-	// Name is the name of the compression codec and is used to set the content
+	// name is the name of the compression codec and is used to set the content
 	// coding header.  The result must be static; the result cannot change
 	// between calls.
 	Name() string
@@ -54,7 +54,7 @@ type Codec interface {
 	Marshal(v interface{}) ([]byte, error)
 	// Unmarshal parses the wire format into v.
 	Unmarshal(data []byte, v interface{}) error
-	// Name returns the name of the Codec implementation. The returned string
+	// name returns the name of the Codec implementation. The returned string
 	// will be used as part of content type in transmission.  The result must be
 	// static; the result cannot change between calls.
 	Name() string
@@ -65,10 +65,10 @@ var registeredCodecs = make(map[string]Codec)
 // RegisterCodec registers the provided Codec for use with all gRPC clients and
 // servers.
 //
-// The Codec will be stored and looked up by result of its Name() method, which
+// The Codec will be stored and looked up by result of its name() method, which
 // should match the content-subtype of the encoding handled by the Codec.  This
 // is case-insensitive, and is stored and looked up as lowercase.  If the
-// result of calling Name() is an empty string, RegisterCodec will panic. See
+// result of calling name() is an empty string, RegisterCodec will panic. See
 // Content-Type on
 // https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests for
 // more details.
@@ -81,7 +81,7 @@ func RegisterCodec(codec Codec) {
 		panic("cannot register a nil Codec")
 	}
 	if codec.Name() == "" {
-		panic("cannot register Codec with empty string result for Name()")
+		panic("cannot register Codec with empty string result for name()")
 	}
 	contentSubtype := strings.ToLower(codec.Name())
 	registeredCodecs[contentSubtype] = codec
