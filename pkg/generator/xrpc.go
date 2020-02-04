@@ -68,7 +68,7 @@ type xrpc struct {
 	gen *generator.Generator
 }
 
-// Name returns the name of this plugin, "xrpc".
+// name returns the name of this plugin, "xrpc".
 func (x *xrpc) Name() string {
 	return "xrpc"
 }
