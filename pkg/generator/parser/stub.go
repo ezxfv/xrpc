@@ -27,6 +27,20 @@ type Generator struct {
 	c     int
 }
 
+func (g *Generator) Tab() {
+	g.ident += 4
+	g.c++
+}
+
+func (g *Generator) UnTab() {
+	g.ident -= 4
+	g.c--
+}
+
+func (g *Generator) F(format string, args ...interface{}) {
+	g.P(fmt.Sprintf(format, args...))
+}
+
 func (g *Generator) P(args ...interface{}) {
 	s := fmt.Sprint(args...)
 	s = strings.TrimSpace(s)
@@ -68,10 +82,79 @@ func (g *Generator) String() string {
 type xrpcStubBuilder struct {
 }
 
+func genClientVars(method *Method) (string, string, string, string) {
+	w := bytes.NewBuffer([]byte{})
+	w.WriteString(method.Name + "(")
+	w.WriteString("ctx context.Context")
+	if len(method.Params) > 0 {
+		w.WriteString(", ")
+	}
+	k := 1
+	var ins, outs, starOuts []string
+	for i, pb := range method.Params {
+		var ns []string
+		if len(pb.Names) != 0 {
+			for range pb.Names {
+				nn := fmt.Sprintf("in_%d", k)
+				k++
+				ns = append(ns, nn)
+			}
+		} else {
+			nn := fmt.Sprintf("in_%d", k)
+			k++
+			ns = append(ns, nn)
+		}
+		ins = append(ins, ns...)
+		w.WriteString(strings.Join(ns, ","))
+		w.WriteString(" ")
+		w.WriteString(pb.Type)
+		if i < len(method.Params)-1 {
+			w.WriteString(", ")
+		}
+	}
+	w.WriteString(") ")
+	if len(method.Results) == 0 {
+		return w.String(), strings.Join(ins, ", "), "", ""
+	}
+	w.WriteString("(")
+	k = 1
+	for i, rb := range method.Results {
+		var ns []string
+		if len(rb.Names) != 0 {
+			for range rb.Names {
+				nn := fmt.Sprintf("out_%d", k)
+				k++
+				ns = append(ns, nn)
+			}
+		} else {
+			nn := fmt.Sprintf("out_%d", k)
+			k++
+			ns = append(ns, nn)
+		}
+		for _, nn := range ns {
+			//if strings.HasPrefix(rb.Type, "*") {
+			//	starOuts = append(starOuts, nn)
+			//} else {
+			starOuts = append(starOuts, "&"+nn)
+			//}
+		}
+		outs = append(outs, ns...)
+		w.WriteString(strings.Join(ns, ","))
+		w.WriteString(" ")
+		w.WriteString(rb.Type)
+		if i < len(method.Results)-1 {
+			w.WriteString(", ")
+		}
+	}
+	w.WriteString(")")
+	return w.String(), strings.Join(ins, ", "), strings.Join(outs, ", "), strings.Join(starOuts, ", ")
+}
+
 func (b *xrpcStubBuilder) ClientStub(meta *MetaData, x *Generator) error {
-	// TODO Client interface.
+	// Client interface.
 	for _, service := range meta.Interfaces() {
 		servName := service.Name
+		fullServName := fmt.Sprintf("%s.%s", meta.Name(), servName)
 		x.P(fmt.Sprintf(`// %sClient is the client API for %s service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/github.com/edenzhong7/xrpc#ClientConn.NewStream.`, servName, servName))
@@ -81,29 +164,127 @@ func (b *xrpcStubBuilder) ClientStub(meta *MetaData, x *Generator) error {
 			//	Names: []string{"opts"},
 			//	Type:  "...xrpc.CallOption",
 			//})
-			x.P(method.String())
+			funcSign, _, _, _ := genClientVars(method)
+			x.P(funcSign)
 		}
 		x.P("}")
 		x.P()
-		// TODO Client structure.
+		// Client structure.
 		x.P("type ", unexport(servName), "Client struct {")
 		x.P("cc *xrpc.ClientConn")
+		x.P("opts []xrpc.CallOption")
 		x.P("}")
 		x.P()
-		// TODO NewClient factory.
-		x.P("func New", servName, "Client(cc *xrpc.ClientConn) ", servName, "Client {")
-		x.P("return &", unexport(servName), "Client{cc}")
+		// NewClient factory.
+		x.P("func New", servName, "Client(cc *xrpc.ClientConn, opts ...xrpc.CallOption) ", servName, "Client {")
+		x.P("return &", unexport(servName), "Client{cc, opts}")
 		x.P("}")
 		x.P()
-		// TODO Client method implementations.
+		// Client method implementations.
 		for _, method := range service.AllMethods() {
-			x.P("func (c *", unexport(servName), "Client) ", method.String(), " {")
-			x.P(fmt.Sprintf(`panic("unimplemented client method: %s")`, method.Name))
+			funcSign, ins, outs, starOuts := genClientVars(method)
+			// TODO 命名参数
+			x.F("func (c *%sClient) %s {", unexport(servName), funcSign)
+			x.P("var ins, outs []interface{}")
+			if len(ins) > 0 {
+				x.F("ins = append(ins, %s)", ins)
+			}
+			if len(starOuts) > 0 {
+				x.F("outs = append(outs, %s)", starOuts)
+			}
+			x.P(`err := c.cc.Invoke(ctx, "`, fmt.Sprintf("/%s/%s", fullServName, method.Name), `", ins, &outs, c.opts...)`)
+			x.F("if err != nil { return %s }", outs)
+			x.P("return ", outs)
+			// TODO 反序列化结果
 			x.P("}")
 			x.P()
 		}
 	}
 	return nil
+}
+
+func genServerVars(method *Method, x *Generator) (string, string) {
+	x.P("var ins []interface{}")
+	var paramsNames []string
+	var var_args bool
+	var resultsNames []string
+	if len(method.Params) > 0 {
+		ins_str := ""
+		x.P("var (")
+		x.Tab()
+		k := 1
+		for _, p := range method.Params {
+			var t string
+			if strings.HasPrefix(p.Type, "*") {
+				t = "= new(" + p.Type[1:] + ")"
+			} else if strings.HasPrefix(p.Type, "...") {
+				t = "[]" + p.Type[3:]
+				var_args = true
+			} else {
+				t = p.Type
+			}
+			var in_name string
+			if len(p.Names) == 0 {
+				in_name = fmt.Sprintf("in_%d", k)
+				x.F("in_%d %s", k, t)
+				paramsNames = append(paramsNames, in_name)
+				if strings.HasPrefix(p.Type, "*") {
+					ins_str = ins_str + in_name + ", "
+				} else {
+					ins_str += ins_str + "&" + in_name + ", "
+				}
+				k++
+			} else {
+				for range p.Names {
+					in_name = fmt.Sprintf("in_%d", k)
+					x.F("in_%d %s", k, t)
+					paramsNames = append(paramsNames, in_name)
+					if strings.HasPrefix(p.Type, "*") {
+						ins_str = ins_str + in_name + ", "
+					} else {
+						ins_str = ins_str + "&" + in_name + ", "
+					}
+					k++
+				}
+			}
+		}
+		x.UnTab()
+		x.P(")")
+		end := len(ins_str) - 2
+		x.F("ins = append(ins, %s)", ins_str[:end])
+	}
+	if len(method.Results) > 0 {
+		x.P("var (")
+		x.Tab()
+		k := 1
+		for _, p := range method.Results {
+			var t string
+			if strings.HasPrefix(p.Type, "*") {
+				t = "= new(" + p.Type[1:] + ")"
+			} else {
+				t = p.Type
+			}
+			if len(p.Names) == 0 {
+				x.F("out_%d %s", k, t)
+				resultsNames = append(resultsNames, fmt.Sprintf("out_%d", k))
+				k++
+			} else {
+				for range p.Names {
+					x.F("out_%d %s", k, t)
+					resultsNames = append(resultsNames, fmt.Sprintf("out_%d", k))
+					k++
+				}
+			}
+		}
+		x.UnTab()
+		x.P(")")
+	}
+	ins := strings.Join(paramsNames, ", ")
+	if var_args {
+		ins += "..."
+	}
+	outs := strings.Join(resultsNames, ", ")
+	return ins, outs
 }
 
 func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
@@ -112,7 +293,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 		serviceDescVar := "_" + servName + "_serviceDesc"
 		fullServName := fmt.Sprintf("%s.%s", meta.Name(), service.Name)
 
-		// TODO Server Unimplemented struct for forward compatibility.
+		// Server Unimplemented struct for forward compatibility.
 		x.P("// Unimplemented", servName, " can be embedded to have forward compatible implementations.")
 		x.P("type Unimplemented", servName, " struct {")
 		x.P("}")
@@ -123,31 +304,49 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 			x.P("}")
 			x.P()
 		}
-		// TODO Server registration.
+		// Server registration.
 		x.P("func Register", servName, "Server(s *xrpc.Server, srv ", servName, ") {")
 		x.P("s.RegisterService(&", serviceDescVar, `, srv)`)
 		x.P("}")
 		x.P()
 
-		// TODO Server handler implementations.
+		// TODO handler implementations.
 		var handlerNames []string
 		for _, method := range service.AllMethods() {
 			methName := method.Name
 			hname := fmt.Sprintf("_%s_%s_Handler", servName, methName)
-			inType := method.Params[0].Type
 			x.P("func ", hname, "(srv interface{}, ctx ", contextPkg, ".Context, dec func(interface{}) error, interceptor ", xrpcPkg, ".UnaryServerInterceptor) (interface{}, error) {")
-			x.P("in := new(", inType, ")")
-			x.P("if err := dec(in); err != nil { return nil, err }")
-			x.P("if interceptor == nil { _ = srv.(", servName, ").", methName, " }")
+			ins, outs := genServerVars(method, x)
+			if len(ins) > 0 {
+				x.P("if err := dec(&ins); err != nil { return nil, err }")
+			}
+			x.F("if interceptor == nil { ")
+			if len(outs) > 0 {
+				x.P("var results []interface{}")
+				x.F("%s = srv.(%s).%s(%s)", outs, servName, methName, ins)
+				x.F("results = append(results, %s)", outs)
+				x.F("return results, nil")
+			} else {
+				x.F("srv.(%s).%s(%s)", servName, methName, ins)
+				x.P("return nil, nil")
+			}
+			x.P("}")
 			x.P("info := &", xrpcPkg, ".UnaryServerInfo{")
 			x.P("Server: srv,")
 			x.P("FullMethod: ", strconv.Quote(fmt.Sprintf("/%s/%s", fullServName, methName)), ",")
 			x.P("}")
 			x.P("handler := func(ctx ", contextPkg, ".Context, req interface{}) (interface{}, error) {")
-			x.P("_ = srv.(", servName, ").", methName)
-			x.P(`panic("gg")`)
+			if len(outs) > 0 {
+				x.P("var results []interface{}")
+				x.F("%s = srv.(%s).%s(%s)", outs, servName, methName, ins)
+				x.F("results = append(results, %s)", outs)
+				x.F("return results, nil")
+			} else {
+				x.F("srv.(%s).%s(%s)", servName, methName, ins)
+				x.P("return nil, nil")
+			}
 			x.P("}")
-			x.P("return interceptor(ctx, in, info, handler)")
+			x.P("return interceptor(ctx, ins, info, handler)")
 			x.P("}")
 			x.P()
 			handlerNames = append(handlerNames, hname)

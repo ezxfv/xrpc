@@ -317,8 +317,8 @@ func (pc *pluginContainer) DoConnect(conn net.Conn) (net.Conn, bool) {
 
 func (pc *pluginContainer) DoDisconnect(conn net.Conn) bool {
 	var ok bool
-	for p := range pc.cp {
-		conn, ok = p.Connect(conn)
+	for p := range pc.dp {
+		ok = p.Disconnect(conn)
 		if !ok {
 			break
 		}
@@ -377,7 +377,7 @@ func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *
 			break
 		}
 	}
-	resp, err = handler(ctx, handler)
+	resp, err = handler(ctx, req)
 	e := err
 	for p := range pc.pohp {
 		ctx, err = p.PostHandle(ctx, req, resp, info, e)
@@ -385,7 +385,7 @@ func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *
 			break
 		}
 	}
-	return ctx, err
+	return resp, err
 }
 
 func (pc *pluginContainer) DoPreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error {

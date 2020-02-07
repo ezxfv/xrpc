@@ -5,16 +5,16 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+	"zen/xrpc/plugin/logp"
 
 	"github.com/edenzhong7/xrpc"
 	"github.com/edenzhong7/xrpc/plugin"
-	"github.com/edenzhong7/xrpc/plugin/log"
 	"github.com/edenzhong7/xrpc/plugin/prom"
 )
 
 func TestLogPlugin(t *testing.T) {
 	var (
-		logPlugin = log.New()
+		logPlugin = logp.New()
 		pc        = plugin.NewPluginContainer()
 	)
 	pc.Add(logPlugin)

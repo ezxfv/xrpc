@@ -98,6 +98,11 @@ func (meta *MetaData) Print(b StubBuilder, w io.Writer) error {
 	meta.AddStubPkg("fmt")
 	meta.AddPkg(&Pkg{
 		Alias: "",
+		Path:  "context",
+	})
+	meta.AddStubPkg("context")
+	meta.AddPkg(&Pkg{
+		Alias: "",
 		Path:  "github.com/edenzhong7/xrpc",
 	})
 	meta.AddStubPkg("xrpc")
@@ -180,11 +185,15 @@ func (meta *MetaData) Parse(file string) {
 						p := m.Type.(*ast.FuncType).Params
 						r := m.Type.(*ast.FuncType).Results
 						var params, results []*ArgBlock
-						for _, pp := range p.List {
-							params = append(params, meta.EvalField(pp))
+						if p != nil {
+							for _, pp := range p.List {
+								params = append(params, meta.EvalField(pp))
+							}
 						}
-						for _, rr := range r.List {
-							results = append(results, meta.EvalField(rr))
+						if r != nil {
+							for _, rr := range r.List {
+								results = append(results, meta.EvalField(rr))
+							}
 						}
 						method := NewMethod(m.Names[0].Name, params, results)
 						it.Methods = append(it.Methods, method)

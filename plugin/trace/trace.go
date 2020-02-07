@@ -3,7 +3,7 @@ package trace
 import (
 	"context"
 
-	"github.com/edenzhong7/xrpc/plugin"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -11,30 +11,23 @@ const (
 )
 
 func init() {
-	plugin.RegisterBuilder(&builder{})
+	registerJaeger()
 }
 
-type builder struct{}
-
-func (b *builder) Name() string {
-	return Name
+func New() *tracePlugin {
+	t := &tracePlugin{}
+	return t
 }
 
-func (b *builder) NewClientMiddleware() plugin.ClientMiddleware {
-	panic("implement me")
+type tracePlugin struct {
 }
 
-func (b *builder) NewServerMiddleware() plugin.ServerMiddleware {
-	panic("implement me")
+func (t *tracePlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
+	println("trace pre")
+	return ctx, nil
 }
 
-type traceMiddleware struct {
-}
-
-func (m *traceMiddleware) Name() string {
-	return "trace"
-}
-
-func (m *traceMiddleware) Handle(ctx context.Context, handler interface{}, args ...interface{}) (newHandler interface{}) {
-	panic("implement me")
+func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error) {
+	println("trace post")
+	return ctx, nil
 }

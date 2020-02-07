@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
-
 	"github.com/edenzhong7/xrpc/pkg/net"
 
 	"github.com/xtaci/smux"
@@ -35,9 +33,16 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 	if n != len(Preface) {
 		return nil, errors.New("write Preface unmatch")
 	}
-
+	dopts := &dialOptions{
+		copts:      ConnectOptions{dialer: net.GetDialer(network)},
+		codec:      "proto",
+		compressor: "gzip",
+	}
+	for _, opt := range opts {
+		opt.apply(dopts)
+	}
 	cc = &ClientConn{
-		dopts:       &dialOptions{copts: ConnectOptions{dialer: net.GetDialer(network)}},
+		dopts:       dopts,
 		protocol:    network,
 		session:     session,
 		conn:        conn,
@@ -58,7 +63,6 @@ func genStreamKey(network net.Network, addr string, method string) string {
 }
 
 func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
-	log.Println("new client session")
 	var stream net.Conn
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)
@@ -78,6 +82,10 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	header := &streamHeader{
 		Cmd:        Init,
 		FullMethod: method,
+		Args: map[string]interface{}{
+			"codec":      cc.dopts.codec,
+			"compressor": cc.dopts.compressor,
+		},
 	}
 	headerJson, err := json.Marshal(&header)
 	if err != nil {
@@ -91,11 +99,12 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	if _, err = stream.Write(data); err != nil {
 		return nil, err
 	}
+	// TODO 设置client新建stream参数
 	cs = &clientStream{
 		stream: stream,
 		header: header,
-		codec:  encoding.GetCodec("proto"),
-		cp:     encoding.GetCompressor("gzip"),
+		codec:  encoding.GetCodec(cc.dopts.codec),
+		cp:     encoding.GetCompressor(cc.dopts.compressor),
 	}
 	cc.streamCache[streamKey] = cs
 	return cs, err
@@ -111,10 +120,9 @@ func invoke(ctx context.Context, method string, req, reply interface{}, cc *Clie
 	if err != nil {
 		return
 	}
-	log.Println("client invoke SendMsg")
 	if err := cs.SendMsg(req); err != nil {
 		return err
 	}
-	log.Println("client invoke RecvMsg")
-	return cs.RecvMsg(reply)
+	err = cs.RecvMsg(reply)
+	return
 }

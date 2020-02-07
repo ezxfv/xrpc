@@ -24,6 +24,8 @@ type dialOptions struct {
 	timeout     time.Duration
 	copts       ConnectOptions
 	callOptions []CallOption
+	codec       string
+	compressor  string
 }
 
 // A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
@@ -31,6 +33,26 @@ type ServerOption func(opts *options)
 
 type DialOption interface {
 	apply(dopts *dialOptions)
+}
+
+type dialOption struct {
+	f func(*dialOptions)
+}
+
+func (d *dialOption) apply(doyts *dialOptions) {
+	d.f(doyts)
+}
+
+func WithJsonCodec() DialOption {
+	return &dialOption{func(dopts *dialOptions) {
+		dopts.codec = "json"
+	}}
+}
+
+func WithSnappyCompressor() DialOption {
+	return &dialOption{func(dopts *dialOptions) {
+		dopts.compressor = "snappy"
+	}}
 }
 
 // WithInsecure returns a DialOption which disables transport security for this

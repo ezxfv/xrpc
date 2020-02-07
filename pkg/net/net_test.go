@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/edenzhong7/xrpc/pkg/net"
-	"github.com/xtaci/smux"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/xtaci/smux"
 )
 
 var (

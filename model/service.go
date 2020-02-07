@@ -11,6 +11,13 @@ import (
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
+
+	"google.golang.org/grpc"
+)
+
+type (
+	UnaryServerInfo        = grpc.UnaryServerInfo
+	UnaryServerInterceptor = grpc.UnaryServerInterceptor
 )
 
 // ServiceInfo service info.
@@ -20,12 +27,7 @@ type ServiceInfo struct {
 	Methods []*MethodInfo
 }
 
-type UnaryServerInfo struct {
-}
-
 type UnaryHandler func(ctx context.Context, req interface{}) (interface{}, error)
-
-type UnaryServerInterceptor func(ctx context.Context, req interface{}, info *UnaryServerInfo, handler UnaryHandler) (resp interface{}, err error)
 
 type StdHandler func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor UnaryServerInterceptor) (interface{}, error)
 

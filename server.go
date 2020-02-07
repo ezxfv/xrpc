@@ -9,21 +9,18 @@ import (
 	"time"
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
-
-	"github.com/xtaci/smux"
-
 	"github.com/edenzhong7/xrpc/pkg/net"
-
 	"github.com/edenzhong7/xrpc/plugin"
 
+	"github.com/xtaci/smux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
 )
 
-type UnaryServerInfo = grpc.UnaryServerInfo
-type UnaryServerInterceptor = grpc.UnaryServerInterceptor
-
-type UnaryHandler func(ctx context.Context, req interface{}) (interface{}, error)
+type (
+	UnaryServerInfo        = grpc.UnaryServerInfo
+	UnaryServerInterceptor = grpc.UnaryServerInterceptor
+)
 
 func NewServer() *Server {
 	pc := plugin.NewPluginContainer()
@@ -73,8 +70,10 @@ func (s *Server) Serve(lis net.Listener) error {
 	return nil
 }
 
-func (s *Server) SetPluginContainer(pc plugin.Container) {
-	s.pc = pc
+func (s *Server) ApplyPlugins(plugins ...plugin.Plugin) {
+	for _, p := range plugins {
+		s.pc.Add(p)
+	}
 }
 
 func (s *Server) Start() {
@@ -146,11 +145,11 @@ func (s *Server) listen(lis net.Listener) {
 		s.sessions[session] = true
 		// TODO DoConnect
 		s.pc.DoConnect(conn)
-		go s.handleSession(session)
+		go s.handleSession(conn, session)
 	}
 }
 
-func (s *Server) handleSession(session *smux.Session) {
+func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 	log.Println("handle server session")
 	defer log.Println("close server session")
 	for {
@@ -172,6 +171,7 @@ func (s *Server) handleSession(session *smux.Session) {
 				stream: &streamConn{stream},
 				codec:  encoding.GetCodec(getCodecArg(header)),
 				cp:     encoding.GetCompressor(getCompressorArg(header)),
+				sc:     s.pc,
 			}
 			ss.header = header
 			// TODO DoOpenStream
@@ -182,7 +182,7 @@ func (s *Server) handleSession(session *smux.Session) {
 		}
 	}
 	// TODO DoDisconnect
-	s.pc.DoDisconnect(nil)
+	s.pc.DoDisconnect(conn)
 }
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
