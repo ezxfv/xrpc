@@ -31,6 +31,7 @@ func NewServer() *Server {
 		conns:    map[net.Conn]bool{},
 		sessions: map[*smux.Session]bool{},
 		pc:       pc,
+		ctx:      context.Background(),
 	}
 	return s
 }
@@ -161,7 +162,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 		if err != nil {
 			return
 		}
-		if pf == CmdHeader {
+		if pf == cmdHeader {
 			header := &streamHeader{}
 			err = json.Unmarshal(data, header)
 			if err != nil {
@@ -194,14 +195,19 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 	}
 	srv := s.m[service].server
 	desc := s.m[service].md[method]
+	var newCtx context.Context
+
+	dec := func(m interface{}) (err error) {
+		newCtx, err = stream.RecvMsg(newCtx, m)
+		return
+	}
 	for {
-		newCtx := ctx
-		var err error
-		reply, err := desc.Handler(srv, newCtx, stream.RecvMsg, s.pc.DoHandle)
+		newCtx = ctx
+		reply, err := desc.Handler(srv, newCtx, dec, s.pc.DoHandle)
 		if err != nil {
 			break
 		}
-		if err = stream.SendMsg(reply); err != nil {
+		if err = stream.SendMsg(newCtx, reply); err != nil {
 			break
 		}
 	}

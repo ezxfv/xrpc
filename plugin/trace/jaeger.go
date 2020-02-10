@@ -1,31 +1,30 @@
 package trace
 
 import (
+	"fmt"
 	"io"
-	"log"
 
-	opentracing "github.com/opentracing/opentracing-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
-	jaegerlog "github.com/uber/jaeger-client-go/log"
-	"github.com/uber/jaeger-lib/metrics"
+	"github.com/opentracing/opentracing-go"
+	jaeger "github.com/uber/jaeger-client-go"
+	"github.com/uber/jaeger-client-go/config"
 )
 
 func registerJaeger() (c io.Closer) {
-	cfg, err := jaegercfg.FromEnv()
-	if err != nil {
-		log.Printf("Could not parse Jaeger env vars: %s", err.Error())
-		return
+	cfg := &config.Configuration{
+		ServiceName: Name,
+		Sampler: &config.SamplerConfig{
+			Type:  "rateLimiting",
+			Param: 10,
+		},
+		Reporter: &config.ReporterConfig{
+			LogSpans:           true,
+			LocalAgentHostPort: "127.0.0.1:6831",
+		},
 	}
-
-	jLogger := jaegerlog.StdLogger
-	jMetricsFactory := metrics.NullFactory
-
-	tracer, c, err := cfg.NewTracer(jaegercfg.Logger(jLogger), jaegercfg.Metrics(jMetricsFactory))
+	tracer, closer, err := cfg.NewTracer(config.Logger(jaeger.StdLogger))
 	if err != nil {
-		log.Printf("Could not initialize jaeger tracer: %s", err.Error())
-		return
+		panic(fmt.Sprintf("ERROR: cannot init Jaeger: %v\n", err))
 	}
-
 	opentracing.SetGlobalTracer(tracer)
-	return
+	return closer
 }

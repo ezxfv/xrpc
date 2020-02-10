@@ -1,14 +1,15 @@
 package plugin_test
 
 import (
-	"context"
 	"math/rand"
 	"testing"
 	"time"
-	"zen/xrpc/plugin/logp"
+
+	"context"
 
 	"github.com/edenzhong7/xrpc"
 	"github.com/edenzhong7/xrpc/plugin"
+	"github.com/edenzhong7/xrpc/plugin/logp"
 	"github.com/edenzhong7/xrpc/plugin/prom"
 )
 

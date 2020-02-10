@@ -4,10 +4,10 @@
 package math
 
 import (
-    "fmt"
     "context"
     "github.com/edenzhong7/xrpc"
     "github.com/edenzhong7/xrpc/pkg/codes"
+    "fmt"
 )
 
 // CounterClient is the client API for Counter service.
@@ -98,6 +98,98 @@ func (c *mathClient) Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 fl
     err := c.cc.Invoke(ctx, "/math.Math/Calc", ins, &outs, c.opts...)
     if err != nil { return out_1, out_2 }
     return out_1, out_2
+}
+
+// UnimplementedCounter can be embedded to have forward compatible implementations.
+type UnimplementedCounter struct {
+}
+
+func (*UnimplementedCounter) Inc(n *Num) (int32, *Num) {
+    panic(fmt.Sprint(codes.Unimplemented, "method Inc not implemented"))
+}
+
+func (*UnimplementedCounter) Dec(n Num) *Num {
+    panic(fmt.Sprint(codes.Unimplemented, "method Dec not implemented"))
+}
+
+func RegisterCounterServer(s *xrpc.Server, srv Counter) {
+    s.RegisterService(&_Counter_serviceDesc, srv)
+}
+
+func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+    var ins []interface{}
+    var (
+        in_1 = new(Num)
+    )
+    ins = append(ins, in_1)
+    var (
+        out_1 int32
+        out_2 = new(Num)
+    )
+    if err := dec(&ins); err != nil { return nil, err }
+    if interceptor == nil {
+        var results []interface{}
+        out_1, out_2 = srv.(Counter).Inc(in_1)
+        results = append(results, out_1, out_2)
+        return results, nil
+    }
+    info := &xrpc.UnaryServerInfo{
+        Server: srv,
+        FullMethod: "/math.Counter/Inc",
+    }
+    handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+        var results []interface{}
+        out_1, out_2 = srv.(Counter).Inc(in_1)
+        results = append(results, out_1, out_2)
+        return results, nil
+    }
+    return interceptor(ctx, ins, info, handler)
+}
+
+func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+    var ins []interface{}
+    var (
+        in_1 Num
+    )
+    ins = append(ins, &in_1)
+    var (
+        out_1 = new(Num)
+    )
+    if err := dec(&ins); err != nil { return nil, err }
+    if interceptor == nil {
+        var results []interface{}
+        out_1 = srv.(Counter).Dec(in_1)
+        results = append(results, out_1)
+        return results, nil
+    }
+    info := &xrpc.UnaryServerInfo{
+        Server: srv,
+        FullMethod: "/math.Counter/Dec",
+    }
+    handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+        var results []interface{}
+        out_1 = srv.(Counter).Dec(in_1)
+        results = append(results, out_1)
+        return results, nil
+    }
+    return interceptor(ctx, ins, info, handler)
+}
+
+var _Counter_serviceDesc = xrpc.ServiceDesc {
+    ServiceName: "math.Counter",
+    HandlerType: (*Counter)(nil),
+    Methods: []xrpc.MethodDesc{
+        {
+            MethodName: "Inc",
+            Handler: _Counter_Inc_Handler,
+        },
+        {
+            MethodName: "Dec",
+            Handler: _Counter_Dec_Handler,
+        },
+    },
+    Streams: []xrpc.StreamDesc{},
+    Metadata: "math",
 }
 
 // UnimplementedMath can be embedded to have forward compatible implementations.
@@ -262,98 +354,6 @@ var _Math_serviceDesc = xrpc.ServiceDesc {
         {
             MethodName: "Calc",
             Handler: _Math_Calc_Handler,
-        },
-    },
-    Streams: []xrpc.StreamDesc{},
-    Metadata: "math",
-}
-
-// UnimplementedCounter can be embedded to have forward compatible implementations.
-type UnimplementedCounter struct {
-}
-
-func (*UnimplementedCounter) Inc(n *Num) (int32, *Num) {
-    panic(fmt.Sprint(codes.Unimplemented, "method Inc not implemented"))
-}
-
-func (*UnimplementedCounter) Dec(n Num) *Num {
-    panic(fmt.Sprint(codes.Unimplemented, "method Dec not implemented"))
-}
-
-func RegisterCounterServer(s *xrpc.Server, srv Counter) {
-    s.RegisterService(&_Counter_serviceDesc, srv)
-}
-
-func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
-    var ins []interface{}
-    var (
-        in_1 = new(Num)
-    )
-    ins = append(ins, in_1)
-    var (
-        out_1 int32
-        out_2 = new(Num)
-    )
-    if err := dec(&ins); err != nil { return nil, err }
-    if interceptor == nil {
-        var results []interface{}
-        out_1, out_2 = srv.(Counter).Inc(in_1)
-        results = append(results, out_1, out_2)
-        return results, nil
-    }
-    info := &xrpc.UnaryServerInfo{
-        Server: srv,
-        FullMethod: "/math.Counter/Inc",
-    }
-    handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-        var results []interface{}
-        out_1, out_2 = srv.(Counter).Inc(in_1)
-        results = append(results, out_1, out_2)
-        return results, nil
-    }
-    return interceptor(ctx, ins, info, handler)
-}
-
-func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
-    var ins []interface{}
-    var (
-        in_1 Num
-    )
-    ins = append(ins, &in_1)
-    var (
-        out_1 = new(Num)
-    )
-    if err := dec(&ins); err != nil { return nil, err }
-    if interceptor == nil {
-        var results []interface{}
-        out_1 = srv.(Counter).Dec(in_1)
-        results = append(results, out_1)
-        return results, nil
-    }
-    info := &xrpc.UnaryServerInfo{
-        Server: srv,
-        FullMethod: "/math.Counter/Dec",
-    }
-    handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-        var results []interface{}
-        out_1 = srv.(Counter).Dec(in_1)
-        results = append(results, out_1)
-        return results, nil
-    }
-    return interceptor(ctx, ins, info, handler)
-}
-
-var _Counter_serviceDesc = xrpc.ServiceDesc {
-    ServiceName: "math.Counter",
-    HandlerType: (*Counter)(nil),
-    Methods: []xrpc.MethodDesc{
-        {
-            MethodName: "Inc",
-            Handler: _Counter_Inc_Handler,
-        },
-        {
-            MethodName: "Dec",
-            Handler: _Counter_Dec_Handler,
         },
     },
     Streams: []xrpc.StreamDesc{},

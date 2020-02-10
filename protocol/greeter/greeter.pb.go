@@ -6,12 +6,11 @@ package greeter
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	xrpc "github.com/edenzhong7/xrpc"
 	codes "github.com/edenzhong7/xrpc/pkg/codes"
 	status "github.com/edenzhong7/xrpc/pkg/status"
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

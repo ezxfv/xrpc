@@ -10,13 +10,14 @@ type HeaderCmd string
 
 const (
 	payloadLen = 1
+	cookieLen  = 4
 	sizeLen    = 4
 	headerLen  = payloadLen + sizeLen
 
-	compressionNone payloadFormat = 0 // no compression
-	compressionMade payloadFormat = 1 // compressed
-	MetaHeader      payloadFormat = 2
-	CmdHeader       payloadFormat = 3
+	compressionNone payloadFormat = iota // no compression
+	compressionMade                      // compressed
+	metaHeader
+	cmdHeader
 
 	Init    HeaderCmd = "init"
 	Close   HeaderCmd = "close"

@@ -9,13 +9,11 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/edenzhong7/xrpc/plugin"
-
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	"github.com/edenzhong7/xrpc/pkg/net"
+	"github.com/edenzhong7/xrpc/plugin"
 
 	"github.com/xtaci/smux"
-
 	"google.golang.org/grpc/metadata"
 )
 
@@ -32,7 +30,7 @@ type Stream interface {
 	// It's safe to have a goroutine calling SendMsg and another goroutine calling
 	// recvMsg on the same stream at the same time.
 	// But it is not safe to call SendMsg on the same stream in different goroutines.
-	SendMsg(m interface{}) error
+	SendMsg(ctx context.Context, m interface{}) error
 	// RecvMsg blocks until it receives a message or the stream is
 	// done. On client side, it returns io.EOF when the stream is done. On
 	// any other error, it aborts the stream and returns an RPC status. On
@@ -40,7 +38,7 @@ type Stream interface {
 	// It's safe to have a goroutine calling SendMsg and another goroutine calling
 	// recvMsg on the same stream at the same time.
 	// But it is not safe to call RecvMsg on the same stream in different goroutines.
-	RecvMsg(m interface{}) error
+	RecvMsg(ctx context.Context, m interface{}) (context.Context, error)
 
 	Close() error
 }
@@ -99,11 +97,14 @@ func (cs *clientStream) Context() context.Context {
 	return cs.ctx
 }
 
-func (cs *clientStream) SendMsg(m interface{}) error {
+func (cs *clientStream) SendMsg(ctx context.Context, m interface{}) error {
 	data, err := cs.codec.Marshal(m)
 	if err != nil {
 		return err
 	}
+	cookies := CookiesHeader(ctx)
+	data = append(cookies, data...)
+
 	var compData []byte = nil
 	cbuf := &bytes.Buffer{}
 	z, err := cs.cp.Compress(cbuf)
@@ -148,25 +149,26 @@ func recv(conn io.Reader) (pf payloadFormat, msg []byte, err error) {
 	return pf, msg, nil
 }
 
-func (cs *clientStream) RecvMsg(m interface{}) error {
+func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Context, error) {
 	pf, msg, err := recv(cs.stream)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 	var data []byte
 	if pf == compressionMade {
 		dc, _ := cs.cp.Decompress(bytes.NewReader(msg))
 		data, err = ioutil.ReadAll(dc)
 		if err != nil {
-			return err
+			return ctx, err
 		}
 	} else {
 		data = msg
 	}
-	if err = cs.codec.Unmarshal(data, m); err != nil {
-		return errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
+	ctx, l := ReadCookiesHeader(ctx, data)
+	if err = cs.codec.Unmarshal(data[l:], m); err != nil {
+		return ctx, errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
 	}
-	return nil
+	return ctx, nil
 }
 
 func (cs *clientStream) Header() (metadata.MD, error) {
@@ -209,7 +211,7 @@ func (ss *serverStream) Context() context.Context {
 	return ss.ctx
 }
 
-func (ss *serverStream) SendMsg(m interface{}) (err error) {
+func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) {
 	// TODO DoPreWriteResponse
 	if err = ss.sc.DoPreWriteResponse(ss.ctx, nil, m); err != nil {
 		return err
@@ -222,6 +224,8 @@ func (ss *serverStream) SendMsg(m interface{}) (err error) {
 	if err != nil {
 		return err
 	}
+	cookies := CookiesHeader(ctx)
+	data = append(cookies, data...)
 	var compData []byte = nil
 	cbuf := &bytes.Buffer{}
 	z, err := ss.cp.Compress(cbuf)
@@ -244,34 +248,36 @@ func (ss *serverStream) SendMsg(m interface{}) (err error) {
 	return err
 }
 
-func (ss *serverStream) RecvMsg(m interface{}) error {
+func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Context, error) {
 	// TODO DoPreReadRequest
 	if err := ss.sc.DoPreReadRequest(ss.ctx); err != nil {
-		return err
+		return ctx, err
 	}
 	pf, msg, err := recv(ss.stream)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 	var data []byte
 	if pf == compressionMade {
 		dc, _ := ss.cp.Decompress(bytes.NewReader(msg))
 		if dc == nil {
-			return errors.New("decompress failed")
+			return ctx, errors.New("decompress failed")
 		}
 		data, err = ioutil.ReadAll(dc)
 		if err != nil {
-			return err
+			return ctx, err
 		}
 	} else {
 		data = msg
 	}
-	if err = ss.codec.Unmarshal(data, m); err != nil {
+	ctx, l := ReadCookiesHeader(ctx, data)
+	// TODO 分解服务端byte数据
+	if err = ss.codec.Unmarshal(data[l:], m); err != nil {
 		err = errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message for %v", err))
 	}
 	// TODO DoPostReadRequest
 	err = ss.sc.DoPostReadRequest(ss.ctx, m, err)
-	return err
+	return ctx, err
 }
 
 func (ss *serverStream) SetHeader(metadata.MD) error {

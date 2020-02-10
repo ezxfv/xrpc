@@ -1,7 +1,6 @@
 package model
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/edenzhong7/xrpc/context"
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
 

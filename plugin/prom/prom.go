@@ -1,10 +1,11 @@
 package prom
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/http"
+
+	"context"
 
 	"github.com/edenzhong7/xrpc/pkg/codes"
 	"github.com/edenzhong7/xrpc/plugin"
@@ -43,7 +44,7 @@ func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp inter
 	if !ok {
 		return ctx, errors.New("prom plugin PostHandle get reporter from ctx failed")
 	}
-	r.Handled(codes.CodeFromError(e))
+	r.Handled(codes.ErrorClass(e))
 	return ctx, nil
 }
 

@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	enablePlugin = false
+	enablePlugin = true
 )
 
 type MathImpl struct {

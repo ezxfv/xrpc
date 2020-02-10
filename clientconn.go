@@ -92,7 +92,7 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 		return nil, err
 	}
 	hdr, data := msgHeader(headerJson, nil)
-	hdr[0] = byte(CmdHeader)
+	hdr[0] = byte(cmdHeader)
 	if _, err = stream.Write(hdr); err != nil {
 		return nil, err
 	}
@@ -120,9 +120,9 @@ func invoke(ctx context.Context, method string, req, reply interface{}, cc *Clie
 	if err != nil {
 		return
 	}
-	if err := cs.SendMsg(req); err != nil {
+	if err := cs.SendMsg(ctx, req); err != nil {
 		return err
 	}
-	err = cs.RecvMsg(reply)
+	ctx, err = cs.RecvMsg(ctx, reply)
 	return
 }
