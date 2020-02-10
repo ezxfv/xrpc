@@ -17,7 +17,7 @@ require (
 	github.com/klauspost/reedsolomon v1.9.3
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lesismal/nbio v0.0.0-20200129190958-2d9b30c7a474
-	github.com/libp2p/go-reuseport v0.0.1 // indirect
+	github.com/libp2p/go-reuseport v0.0.1
 	github.com/lucas-clemente/quic-go v0.14.1
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/multiformats/go-multiaddr v0.2.0

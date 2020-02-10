@@ -1,4 +1,4 @@
-package model
+package xrpc
 
 import (
 	"reflect"

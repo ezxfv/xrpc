@@ -1,9 +1,10 @@
-package model_test
+package xrpc_test
 
 import (
 	"testing"
 
-	"github.com/edenzhong7/xrpc/model"
+	"github.com/edenzhong7/xrpc"
+
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -29,7 +30,7 @@ func Add(a, b int) int {
 }
 
 func TestCustomService_Call(t *testing.T) {
-	cs := model.NewCustomService()
+	cs := xrpc.NewCustomService()
 	cs.RegisterService("math", &Math{})
 	var (
 		a = 1
@@ -41,12 +42,12 @@ func TestCustomService_Call(t *testing.T) {
 	args := []interface{}{&a, &b, &h}
 	data, _ := jsoniter.Marshal(args)
 	res, _ := cs.Call("math.Add", data)
-	model.Dispatch(res, &c, &d, &h)
+	xrpc.Dispatch(res, &c, &d, &h)
 	println(c, d, h.Age)
 }
 
 func TestCustomService_RegisterFunction(t *testing.T) {
-	cs := model.NewCustomService()
+	cs := xrpc.NewCustomService()
 	cs.RegisterFunction("math", "Sub", Sub)
 	cs.RegisterFunction("math", "Add", Add)
 	var (
@@ -57,15 +58,15 @@ func TestCustomService_RegisterFunction(t *testing.T) {
 	args := []interface{}{&a, &b}
 	data, _ := jsoniter.Marshal(args)
 	res, _ := cs.Call("math.Sub", data)
-	model.Dispatch(res, &c)
+	xrpc.Dispatch(res, &c)
 	println(c)
 	res, _ = cs.Call("math.Add", data)
-	model.Dispatch(res, &c)
+	xrpc.Dispatch(res, &c)
 	println(c)
 }
 
 func BenchmarkCustomService_RegisterFunction(b *testing.B) {
-	cs := model.NewCustomService()
+	cs := xrpc.NewCustomService()
 	cs.RegisterFunction("math", "Sub", Sub)
 	var (
 		a1 = 1
@@ -76,6 +77,6 @@ func BenchmarkCustomService_RegisterFunction(b *testing.B) {
 		args := []interface{}{&a1, &a2}
 		data, _ := jsoniter.Marshal(args)
 		res, _ := cs.Call("math.Sub", data)
-		model.Dispatch(res, &c)
+		xrpc.Dispatch(res, &c)
 	}
 }

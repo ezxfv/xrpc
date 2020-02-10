@@ -1,6 +1,7 @@
-package model
+package xrpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -8,16 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/edenzhong7/xrpc/context"
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
-
-	"google.golang.org/grpc"
-)
-
-type (
-	UnaryServerInfo        = grpc.UnaryServerInfo
-	UnaryServerInterceptor = grpc.UnaryServerInterceptor
 )
 
 // ServiceInfo service info.
@@ -33,7 +26,6 @@ type StdHandler func(srv interface{}, ctx context.Context, dec func(interface{})
 
 type CustomHandler func(srv interface{}, ctx context.Context)
 
-// MethodInfo method info
 type MethodInfo struct {
 	Name      string
 	ReqName   string
@@ -64,7 +56,7 @@ func _call(f reflect.Value, params ...interface{}) (out []interface{}, err error
 	return
 }
 
-type service struct {
+type customService struct {
 	name string
 	ss   interface{}
 	md   map[string]reflect.Value
@@ -73,7 +65,7 @@ type service struct {
 func NewCustomService() *CustomService {
 	return &CustomService{
 		pool:  &argsPool{pools: &sync.Pool{}},
-		m:     map[string]*service{},
+		m:     map[string]*customService{},
 		codec: encoding.GetCodec("json"),
 		mu:    &sync.Mutex{},
 	}
@@ -81,7 +73,7 @@ func NewCustomService() *CustomService {
 
 type CustomService struct {
 	pool  *argsPool
-	m     map[string]*service
+	m     map[string]*customService
 	codec encoding.Codec
 	mu    *sync.Mutex
 }
@@ -93,7 +85,7 @@ func (r *CustomService) RegisterService(serviceName string, ss interface{}) (err
 	if _, ok := r.m[serviceName]; ok {
 		log.Fatalf("Server.RegisterService found duplicate service registration for %q", serviceName)
 	}
-	srv := &service{
+	srv := &customService{
 		name: serviceName,
 		ss:   ss,
 		md:   make(map[string]reflect.Value),
@@ -108,7 +100,7 @@ func (r *CustomService) RegisterService(serviceName string, ss interface{}) (err
 
 func (r *CustomService) RegisterFunction(serviceName string, fname string, fn interface{}) {
 	if _, ok := r.m[serviceName]; !ok {
-		r.m[serviceName] = &service{
+		r.m[serviceName] = &customService{
 			name: serviceName,
 			ss:   nil,
 			md:   map[string]reflect.Value{},
