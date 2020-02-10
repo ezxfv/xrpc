@@ -17,6 +17,9 @@ type Plugin interface{}
 //PluginContainer represents a plugin container that defines all methods to manage plugins.
 //And it also defines all extension points.
 type Container interface {
+	Start() error
+	Stop() error
+
 	Add(plugin Plugin)
 	Remove(plugin Plugin)
 
@@ -44,6 +47,14 @@ type IOContainer interface {
 }
 
 type (
+	StartPlugin interface {
+		Start() error
+	}
+
+	StopPlugin interface {
+		Stop() error
+	}
+
 	RegisterServicePlugin interface {
 		RegisterService(sd *grpc.ServiceDesc, ss interface{}) error
 	}
@@ -54,6 +65,10 @@ type (
 
 	RegisterFunctionPlugin interface {
 		RegisterFunction(serviceName, fname string, fn interface{}, metadata string) error
+	}
+
+	UnregisterServicePlugin interface {
+		Unregister(serviceName string) error
 	}
 
 	ConnectPlugin interface {
@@ -173,6 +188,30 @@ type pluginContainer struct {
 	powrp   map[PostWriteResponsePlugin]bool
 
 	mu *sync.Mutex
+}
+
+func (pc *pluginContainer) Start() (err error) {
+	for plugin := range pc.plugins {
+		if pp, ok := plugin.(StartPlugin); ok {
+			err = pp.Start()
+			if err != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+func (pc *pluginContainer) Stop() (err error) {
+	for plugin := range pc.plugins {
+		if pp, ok := plugin.(StopPlugin); ok {
+			err = pp.Stop()
+			if err != nil {
+				return
+			}
+		}
+	}
+	return
 }
 
 // Add adds a plugin.

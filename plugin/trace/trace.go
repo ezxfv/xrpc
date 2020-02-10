@@ -95,7 +95,7 @@ func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp inte
 	return ctx, nil
 }
 
-func (t *tracePlugin) Close() error {
+func (t *tracePlugin) Stop() error {
 	if c == nil {
 		return nil
 	}

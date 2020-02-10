@@ -1,11 +1,11 @@
 package prom
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
-
-	"context"
 
 	"github.com/edenzhong7/xrpc/pkg/codes"
 	"github.com/edenzhong7/xrpc/plugin"
@@ -25,12 +25,18 @@ func New() plugin.Plugin {
 	}
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(p.metrics)
-	go StartServe("/metrics", 13140, reg)
+	p.uri = "/metrics"
+	p.port = 13140
+	p.gatherer = reg
 	return p
 }
 
 type promPlugin struct {
-	metrics *DefaultMetrics
+	metrics  *DefaultMetrics
+	uri      string
+	port     uint
+	gatherer prometheus.Gatherer
+	s        *http.Server
 }
 
 func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
@@ -48,11 +54,27 @@ func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp inter
 	return ctx, nil
 }
 
-// StartServe 在指定地址上开启prometheus http，未提供Gatherer的情况下使用默认Gatherer
-func StartServe(uri string, port uint, gatherer prometheus.Gatherer) {
-	if gatherer == nil {
-		gatherer = prometheus.DefaultGatherer
+// Start 在指定地址上开启prometheus http，未提供Gatherer的情况下使用默认Gatherer
+func (p *promPlugin) Start() error {
+	if p.gatherer == nil {
+		p.gatherer = prometheus.DefaultGatherer
 	}
-	http.Handle(uri, promhttp.HandlerFor(gatherer, promhttp.HandlerOpts{}))
-	_ = http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+
+	http.Handle(p.uri, promhttp.HandlerFor(p.gatherer, promhttp.HandlerOpts{}))
+	addr := fmt.Sprintf(":%d", p.port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: http.DefaultServeMux,
+	}
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	go server.Serve(lis)
+	p.s = server
+	return nil
+}
+
+func (p *promPlugin) Stop() error {
+	return p.s.Close()
 }

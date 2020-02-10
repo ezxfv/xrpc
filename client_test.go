@@ -23,6 +23,8 @@ func newMathClient(protocol, addr string) pb.MathClient {
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
+	conn.SetHeaderArg("user", user)
+	conn.SetHeaderArg("pass", pass)
 	client := pb.NewMathClient(conn)
 	return client
 }
@@ -50,7 +52,6 @@ func TestMathClient(t *testing.T) {
 		client = newMathClient("tcp", "localhost:9898")
 	}
 	ctx := context.Background()
-	//ctx = xrpc.SetCookie(ctx, "endpoint", "client")
 	r := client.Add(ctx, a, b)
 	assert.Equal(t, 5, r)
 	log.Printf("3 + 2 = %d", r)
@@ -66,7 +67,6 @@ func TestMathClient(t *testing.T) {
 
 func TestGreeterClient(t *testing.T) {
 	client := newGreeterClient("tcp", "localhost:9898")
-	// Contact the server and print out its response.
 	r, err := client.SayHello(context.Background(), &greeter_pb.HelloRequest{Name: name})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)

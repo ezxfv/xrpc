@@ -22,6 +22,16 @@ type logPlugin struct {
 	l log.Logger
 }
 
+func (p *logPlugin) Start() error {
+	p.l.Debug("starting log plugin")
+	return nil
+}
+
+func (p *logPlugin) Stop() error {
+	p.l.Debug("stopping log plugin")
+	return nil
+}
+
 func (p *logPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
 	var methods []string
 	for _, m := range sd.Methods {
@@ -61,7 +71,7 @@ func (p *logPlugin) OpenStream(ctx context.Context, conn net.Conn) error {
 }
 
 func (p *logPlugin) CloseStream(ctx context.Context, conn net.Conn) error {
-	p.l.Debugf("Close stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	p.l.Debugf("Stop stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
 	return nil
 }
 

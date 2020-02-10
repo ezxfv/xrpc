@@ -8,6 +8,7 @@ import (
 
 type Network = string
 type Addr = net.Addr
+type IPNet = net.IPNet
 
 const (
 	TCP  Network = "tcp"
@@ -15,7 +16,11 @@ const (
 	WS           = "ws"
 	KCP          = "kcp"
 	SSH          = "ssh"
-	NB           = "nb"
+)
+
+var (
+	SplitHostPort = net.SplitHostPort
+	ParseIP       = net.ParseIP
 )
 
 type XAddr struct {
@@ -60,7 +65,7 @@ type Listener interface {
 	// Accept waits for and returns the next connection to the listener.
 	Accept() (Conn, error)
 
-	// Close closes the listener.
+	// Stop closes the listener.
 	// Any blocked Accept operations will be unblocked and return errors.
 	Close() error
 

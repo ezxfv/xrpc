@@ -12,6 +12,7 @@ import (
 	"github.com/edenzhong7/xrpc/plugin/logp"
 	"github.com/edenzhong7/xrpc/plugin/prom"
 	"github.com/edenzhong7/xrpc/plugin/trace"
+	"github.com/edenzhong7/xrpc/plugin/whitelist"
 
 	greeter_pb "github.com/edenzhong7/xrpc/protocol/greeter"
 	math_pb "github.com/edenzhong7/xrpc/protocol/math"
@@ -19,6 +20,10 @@ import (
 
 var (
 	enablePlugin = true
+	enableAuth   = true
+
+	user = "admin"
+	pass = "1234"
 )
 
 type MathImpl struct {
@@ -66,7 +71,13 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 		promPlugin := prom.New()
 		logPlugin := logp.New()
 		tracePlugin := trace.New()
-		s.ApplyPlugins(promPlugin, logPlugin, tracePlugin)
+		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
+		s.ApplyPlugins(promPlugin, logPlugin, tracePlugin, whitelistPlugin)
+		s.StartPlugins()
+	}
+	if enableAuth {
+		admin := xrpc.NewAdminAuthenticator(user, pass)
+		s.SetAuthenticator(admin)
 	}
 	return lis, s
 }

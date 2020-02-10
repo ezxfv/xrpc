@@ -18,6 +18,8 @@ type ClientConn struct {
 	session     *smux.Session
 	conn        net.Conn
 	streamCache map[string]ClientStream
+
+	args map[string]interface{}
 }
 
 type CallOption struct {
@@ -31,7 +33,7 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 		return
 	}
 	if n != len(Preface) {
-		return nil, errors.New("write Preface unmatch")
+		return nil, errors.New("wrote Preface length isn't match")
 	}
 	dopts := &dialOptions{
 		copts:      ConnectOptions{dialer: net.GetDialer(network)},
@@ -47,8 +49,13 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 		session:     session,
 		conn:        conn,
 		streamCache: map[string]ClientStream{},
+		args:        map[string]interface{}{},
 	}
 	return
+}
+
+func (cc *ClientConn) SetHeaderArg(key string, value interface{}) {
+	cc.args[key] = value
 }
 
 func (cc *ClientConn) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...CallOption) error {
@@ -79,13 +86,17 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	if err != nil {
 		return nil, err
 	}
+	args := map[string]interface{}{
+		"codec":      cc.dopts.codec,
+		"compressor": cc.dopts.compressor,
+	}
+	for k, v := range cc.args {
+		args[k] = v
+	}
 	header := &streamHeader{
 		Cmd:        Init,
 		FullMethod: method,
-		Args: map[string]interface{}{
-			"codec":      cc.dopts.codec,
-			"compressor": cc.dopts.compressor,
-		},
+		Args:       args,
 	}
 	headerJson, err := json.Marshal(&header)
 	if err != nil {
@@ -99,7 +110,6 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	if _, err = stream.Write(data); err != nil {
 		return nil, err
 	}
-	// TODO 设置client新建stream参数
 	cs = &clientStream{
 		stream: stream,
 		header: header,

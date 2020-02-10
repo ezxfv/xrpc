@@ -122,3 +122,14 @@ func TestQuicListener(t *testing.T) {
 func TestQuicConn(t *testing.T) {
 	testConn(t, net.QUIC)
 }
+
+func TestReusePort(t *testing.T) {
+	_, err := net.Listen(context.Background(), net.WS, addr)
+	assert.Equal(t, nil, err)
+	_, err = net.Listen(context.Background(), net.KCP, addr)
+	assert.Equal(t, nil, err)
+	_, err = net.Listen(context.Background(), net.TCP, addr)
+	assert.Equal(t, nil, err)
+	_, err = net.Listen(context.Background(), net.QUIC, addr)
+	assert.Equal(t, nil, err)
+}

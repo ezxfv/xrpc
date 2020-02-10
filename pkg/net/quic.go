@@ -81,7 +81,11 @@ func generateTLSConfig() *tls.Config {
 }
 
 func newQuicListener(ctx context.Context, addr string) (Listener, error) {
-	quicListener, err := quic.ListenAddr(addr, generateTLSConfig(), nil)
+	conn, err := UDPListen("udp", addr)
+	if err != nil {
+		return nil, err
+	}
+	quicListener, err := quic.Listen(conn, generateTLSConfig(), nil)
 	maxBufSize := 512
 	if err != nil {
 		return nil, err

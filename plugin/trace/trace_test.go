@@ -117,7 +117,7 @@ func TestJaegerTwoStep(t *testing.T) {
 func TestTracePlugin(t *testing.T) {
 	p := trace.New()
 	tracer := opentracing.GlobalTracer()
-	//defer p.Close()
+	//defer p.Stop()
 	for i := 0; i < 1; i++ {
 		span := tracer.StartSpan(fmt.Sprintf("trace_root_%d", i))
 		ctx := opentracing.ContextWithSpan(context.Background(), span)

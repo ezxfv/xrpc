@@ -85,6 +85,7 @@ type WSListener struct {
 	addr     Addr
 	connChan chan Conn
 	closed   bool
+	server   *http.Server
 }
 
 func (wsl *WSListener) Accept() (Conn, error) {
@@ -112,7 +113,17 @@ func (wsl *WSListener) handleConnection(w http.ResponseWriter, r *http.Request) 
 
 func (wsl *WSListener) listen() (err error) {
 	http.HandleFunc(wsPath, wsl.handleConnection)
-	return http.ListenAndServe(wsl.addr.String(), nil)
+	server := &http.Server{
+		Addr:    wsl.addr.String(),
+		Handler: http.DefaultServeMux,
+	}
+	lis, err := TCPListen("tcp", wsl.addr.String())
+	if err != nil {
+		return err
+	}
+	wsl.server = server
+	go server.Serve(lis)
+	return
 }
 
 func (wsl *WSListener) AcceptFullConn() (conn Conn, err error) {
@@ -140,11 +151,15 @@ func (wsl *WSListener) AcceptWithTimeout(timeout time.Duration) (conn Conn, err 
 
 func (wsl *WSListener) Close() (err error) {
 	wsl.closed = true
+	close(wsl.connChan)
 	for v := range wsl.connChan {
 		err = v.(Conn).Close()
 		if err != nil {
 			return
 		}
+	}
+	if wsl.server != nil {
+		err = wsl.server.Close()
 	}
 	return err
 }

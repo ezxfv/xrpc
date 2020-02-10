@@ -21,7 +21,7 @@ func init() {
 }
 
 func newTCPListener(ctx context.Context, addr string) (lis Listener, err error) {
-	l, err := net.Listen("tcp", addr)
+	l, err := TCPListen("tcp", addr)
 	lis = &tcpListener{l.(*net.TCPListener)}
 	return
 }

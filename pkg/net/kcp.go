@@ -32,8 +32,19 @@ func init() {
 
 func newKcpListener(ctx context.Context, addr string) (lis Listener, err error) {
 	key := pbkdf2.Key([]byte("demo pass"), []byte("demo salt"), 1024, 32, sha1.New)
-	block, _ := kcp.NewAESBlockCrypt(key)
-	l, err := kcp.ListenWithOptions(addr, block, 10, 3)
+	block, err := kcp.NewAESBlockCrypt(key)
+	if err != nil {
+		return
+	}
+	//l, err := kcp.ListenWithOptions(addr, block, 10, 3)
+	conn, err := UDPListen("udp", addr)
+	if err != nil {
+		return
+	}
+	l, err := kcp.ServeConn(block, 10, 3, conn)
+	if err != nil {
+		return
+	}
 	lis = &kcpListener{lis: l}
 	return
 }

@@ -3,18 +3,17 @@ package xrpc
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/edenzhong7/xrpc/pkg/encoding"
+	"github.com/edenzhong7/xrpc/pkg/log"
 	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/edenzhong7/xrpc/plugin"
 
 	"github.com/xtaci/smux"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 )
 
 type (
@@ -32,6 +31,7 @@ func NewServer() *Server {
 		sessions: map[*smux.Session]bool{},
 		pc:       pc,
 		ctx:      context.Background(),
+		auth:     NewEmptyAuthenticator(),
 	}
 	return s
 }
@@ -53,6 +53,8 @@ type Server struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	auth Authenticator
+
 	lis      map[net.Listener]bool
 	conns    map[net.Conn]bool
 	sessions map[*smux.Session]bool
@@ -69,6 +71,24 @@ type Server struct {
 func (s *Server) Serve(lis net.Listener) error {
 	go s.listen(lis)
 	return nil
+}
+
+func (s *Server) SetAuthenticator(authenticator Authenticator) {
+	s.auth = authenticator
+}
+
+func (s *Server) Shutdown() (err error) {
+	if s.pc != nil {
+		err = s.pc.Stop()
+	}
+	return
+}
+
+func (s *Server) StartPlugins() (err error) {
+	if s.pc != nil {
+		err = s.pc.Start()
+	}
+	return
 }
 
 func (s *Server) ApplyPlugins(plugins ...plugin.Plugin) {
@@ -95,7 +115,7 @@ func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 	ht := reflect.TypeOf(sd.HandlerType).Elem()
 	st := reflect.TypeOf(ss)
 	if !st.Implements(ht) {
-		grpclog.Fatalf("grpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
+		log.Fatalf("xrpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
 	}
 	s.register(sd, ss)
 }
@@ -104,10 +124,10 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.serve {
-		grpclog.Fatalf("grpc: Server.RegisterService after Server.Serve for %q", sd.ServiceName)
+		log.Fatalf("xrpc: Server.RegisterService after Server.Serve for %q", sd.ServiceName)
 	}
 	if _, ok := s.m[sd.ServiceName]; ok {
-		grpclog.Fatalf("grpc: Server.RegisterService found duplicate service registration for %q", sd.ServiceName)
+		log.Fatalf("xrpc: Server.RegisterService found duplicate service registration for %q", sd.ServiceName)
 	}
 	srv := &service{
 		server: ss,
@@ -145,14 +165,18 @@ func (s *Server) listen(lis net.Listener) {
 		}
 		s.sessions[session] = true
 		// TODO DoConnect
-		s.pc.DoConnect(conn)
+		conn, ok := s.pc.DoConnect(conn)
+		if !ok {
+			conn.Close()
+			continue
+		}
 		go s.handleSession(conn, session)
 	}
 }
 
 func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
-	log.Println("handle server session")
-	defer log.Println("close server session")
+	log.Debug("handle server session")
+	defer log.Debug("close server session")
 	for {
 		stream, err := session.AcceptStream()
 		if err != nil {
@@ -166,6 +190,11 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 			header := &streamHeader{}
 			err = json.Unmarshal(data, header)
 			if err != nil {
+				continue
+			}
+			if err = s.auth.Authenticate(header.Args); err != nil {
+				log.Error(err.Error())
+				stream.Close()
 				continue
 			}
 			ss := &serverStream{
@@ -187,8 +216,8 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 }
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
-	log.Println("process server stream")
-	log.Println("close server stream")
+	log.Debug("process server stream")
+	log.Debug("close server stream")
 	service, method := header.splitMethod()
 	if service == "" || method == "" {
 		return
