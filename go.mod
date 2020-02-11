@@ -14,6 +14,7 @@ require (
 	github.com/juju/ratelimit v1.0.1
 	github.com/klauspost/cpuid v1.2.2 // indirect
 	github.com/klauspost/reedsolomon v1.9.3 // indirect
+	github.com/labstack/echo/v4 v4.1.14
 	github.com/libp2p/go-reuseport v0.0.1
 	github.com/lucas-clemente/quic-go v0.14.1
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
@@ -32,6 +33,6 @@ require (
 	github.com/xtaci/lossyconn v0.0.0-20200209145036-adba10fffc37 // indirect
 	github.com/xtaci/smux v1.5.7
 	go.uber.org/atomic v1.5.1 // indirect
-	golang.org/x/crypto v0.0.0-20191219195013-becbf705a915
+	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
 	google.golang.org/grpc v1.24.0
 )

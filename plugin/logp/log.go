@@ -1,14 +1,15 @@
 package logp
 
 import (
-	"os"
-
 	"context"
+	"net/http"
+	"os"
 
 	"github.com/edenzhong7/xrpc/pkg/log"
 	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/edenzhong7/xrpc/plugin"
 
+	echo "github.com/labstack/echo/v4"
 	"google.golang.org/grpc"
 )
 
@@ -30,6 +31,13 @@ func (p *logPlugin) Start() error {
 func (p *logPlugin) Stop() error {
 	p.l.Debug("stopping log plugin")
 	return nil
+}
+
+func (p *logPlugin) RegisterAPI(e *echo.Echo) {
+	g := e.Group("log")
+	g.GET("", func(c echo.Context) error {
+		return c.String(http.StatusOK, "log plugin api")
+	})
 }
 
 func (p *logPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error {

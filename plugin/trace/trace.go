@@ -44,10 +44,8 @@ type tracePlugin struct {
 func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc.UnaryServerInfo) (context.Context, error) {
 	println("trace pre")
 	spanContext, err := t.tracer.Extract(opentracing.TextMap, NewSpanCtxReader(ctx))
-	if err != nil && err != opentracing.ErrSpanContextNotFound {
-		// TODO: establish some sort of error reporting mechanism here. We
-		// don't know where to put such an error and must rely on Tracer
-		// implementations to do something appropriate for the time being.
+	if err != nil {
+		return ctx, err
 	}
 	if t.otgrpcOpts.inclusionFunc != nil &&
 		!t.otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, req, nil) {

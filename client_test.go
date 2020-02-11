@@ -25,15 +25,10 @@ var (
 
 	user = "admin"
 	pass = "1234"
-	ctx  = xrpc.SetCookie(context.Background(), crypto.Key, sessionID)
+	ctx  = context.Background()
 )
 
-func newMathClient(protocol, addr string) pb.MathClient {
-	conn, err := xrpc.Dial(protocol, addr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-
+func setupConn(conn *xrpc.ClientConn) {
 	cryptoPlugin := crypto.New()
 	cryptoPlugin.SetKey(sessionID, sessionKey)
 	conn.ApplyPlugins(cryptoPlugin)
@@ -41,6 +36,15 @@ func newMathClient(protocol, addr string) pb.MathClient {
 	conn.SetHeaderArg("user", user)
 	conn.SetHeaderArg("pass", pass)
 	conn.SetHeaderArg(crypto.Key, sessionID)
+}
+
+func newMathClient(protocol, addr string) pb.MathClient {
+	conn, err := xrpc.Dial(protocol, addr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+
+	setupConn(conn)
 
 	client := pb.NewMathClient(conn)
 	return client
@@ -51,6 +55,9 @@ func newGreeterClient(protocol, addr string) greeter_pb.GreeterClient {
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
+
+	setupConn(conn)
+
 	client := greeter_pb.NewGreeterClient(conn)
 	return client
 }

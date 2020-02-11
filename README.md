@@ -10,6 +10,8 @@ A Simple RPC Framework
   - 特定日志
   - 连接黑白名单
   - 连接认证
+  - 加密数据
+  - 服务注册
 
 ## TODO
 - p2p服务发现(基于chord协议)
@@ -121,7 +123,7 @@ func RunMathClient() {
     conn.SetHeaderArg(crypto.Key, sessionID)
     
     client := pb.NewMathClient(conn)
-    ctx := xrpc.SetCookie(context.Background(), crypto.Key, sessionID)
+    ctx :=context.Background()
 
     r := client.Add(ctx, a, b)
     assert.Equal(t, r, 5)

@@ -104,11 +104,11 @@ func (s *Server) Start() {
 }
 
 func (s *Server) RegisterFunction(serviceName, fname string, fn interface{}, metadata string) {
-	// TODO DoRegisterFunction
+	// DoRegisterFunction
 }
 
 func (s *Server) RegisterCustomService(sd *ServiceDesc, ss interface{}) {
-	// TODO DoRegisterCustomService
+	// DoRegisterCustomService
 }
 
 func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
@@ -144,7 +144,7 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 		srv.sd[d.StreamName] = d
 	}
 	s.m[sd.ServiceName] = srv
-	// TODO DoRegister
+	// DoRegister
 	s.pc.DoRegisterService(sd, ss)
 }
 
@@ -164,7 +164,7 @@ func (s *Server) listen(lis net.Listener) {
 			continue
 		}
 		s.sessions[session] = true
-		// TODO DoConnect
+		// DoConnect
 		conn, ok := s.pc.DoConnect(conn)
 		if !ok {
 			conn.Close()
@@ -204,7 +204,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 				sc:     s.pc,
 				header: header,
 			}
-			// TODO DoOpenStream
+			// DoOpenStream
 			if _, err = s.pc.DoOpenStream(context.Background(), stream); err != nil {
 				continue
 			}
@@ -218,7 +218,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 			go s.processStream(ctx, ss, header)
 		}
 	}
-	// TODO DoDisconnect
+	// DoDisconnect
 	s.pc.DoDisconnect(conn)
 }
 
@@ -247,6 +247,6 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 			break
 		}
 	}
-	// TODO DoCloseStream
+	// DoCloseStream
 	s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
 }

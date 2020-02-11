@@ -183,7 +183,7 @@ func (b *xrpcStubBuilder) ClientStub(meta *MetaData, x *Generator) error {
 		// Client method implementations.
 		for _, method := range service.AllMethods() {
 			funcSign, ins, outs, starOuts := genClientVars(method)
-			// TODO 命名参数
+			// 命名参数
 			x.F("func (c *%sClient) %s {", unexport(servName), funcSign)
 			x.P("var ins, outs []interface{}")
 			if len(ins) > 0 {
@@ -195,7 +195,7 @@ func (b *xrpcStubBuilder) ClientStub(meta *MetaData, x *Generator) error {
 			x.P(`err := c.cc.Invoke(ctx, "`, fmt.Sprintf("/%s/%s", fullServName, method.Name), `", ins, &outs, c.opts...)`)
 			x.F("if err != nil { return %s }", outs)
 			x.P("return ", outs)
-			// TODO 反序列化结果
+			// 反序列化结果
 			x.P("}")
 			x.P()
 		}
@@ -310,7 +310,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 		x.P("}")
 		x.P()
 
-		// TODO handler implementations.
+		// handler implementations.
 		var handlerNames []string
 		for _, method := range service.AllMethods() {
 			methName := method.Name
@@ -351,7 +351,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 			x.P()
 			handlerNames = append(handlerNames, hname)
 		}
-		// TODO Service descriptor.
+		// Service descriptor.
 		x.P("var ", serviceDescVar, " = ", xrpcPkg, ".ServiceDesc {")
 		x.P("ServiceName: ", strconv.Quote(fullServName), ",")
 		x.P("HandlerType: (*", servName, ")(nil),")

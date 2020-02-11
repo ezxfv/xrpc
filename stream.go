@@ -271,7 +271,7 @@ func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 	if err != nil {
 		return ctx, err
 	}
-	// TODO DoPreReadRequest
+	// DoPreReadRequest
 	if msg, err = ss.sc.DoPreReadRequest(ctx, msg); err != nil {
 		return ctx, err
 	}
@@ -289,11 +289,10 @@ func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 		data = msg
 	}
 	ctx, l := ReadCookiesHeader(ctx, data)
-	// TODO 分解服务端byte数据
 	if err = ss.codec.Unmarshal(data[l:], m); err != nil {
 		err = errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message for %v", err))
 	}
-	// TODO DoPostReadRequest
+	// DoPostReadRequest
 	err = ss.sc.DoPostReadRequest(ctx, m, err)
 	return ctx, err
 }

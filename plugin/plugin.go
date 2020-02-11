@@ -2,13 +2,17 @@ package plugin
 
 import (
 	"errors"
+	"net/http"
 	"plugin"
+	"strconv"
 	"sync"
 
 	"context"
 
+	"github.com/edenzhong7/xrpc/api"
 	"github.com/edenzhong7/xrpc/pkg/net"
 
+	echo "github.com/labstack/echo/v4"
 	"google.golang.org/grpc"
 )
 
@@ -147,6 +151,7 @@ func NewPluginContainer() Container {
 
 		mu: &sync.Mutex{},
 	}
+	api.Register(pc)
 	return pc
 }
 
@@ -225,6 +230,10 @@ func (pc *pluginContainer) Add(plugin Plugin) {
 	}
 
 	pc.plugins[plugin] = true
+
+	if p, ok := plugin.(api.APIer); ok {
+		api.Register(p)
+	}
 
 	if p, ok := plugin.(RegisterServicePlugin); ok {
 		pc.rsp[p] = true
@@ -452,6 +461,16 @@ func (pc *pluginContainer) DoPostWriteResponse(ctx context.Context, req interfac
 		}
 	}
 	return err
+}
+
+func (pc *pluginContainer) RegisterAPI(e *echo.Echo) {
+	g := e.Group("/plugincontainer")
+	g.GET("", func(c echo.Context) error {
+		return c.String(http.StatusOK, "plugin contains api is working")
+	})
+	g.GET("/count", func(c echo.Context) error {
+		return c.String(http.StatusOK, strconv.Itoa(len(pc.plugins)))
+	})
 }
 
 func LoadPluginDLL(ctx context.Context, libPath string) (p Plugin, err error) {

@@ -131,9 +131,7 @@ func (x *xrpc) GenerateImports(file *generator.FileDescriptor) {
 }
 
 // reservedClientName records whether a client name is reserved on the client side.
-var reservedClientName = map[string]bool{
-	// TODO: do we need any in gRPC?
-}
+var reservedClientName = map[string]bool{}
 
 func unexport(s string) string { return strings.ToLower(s[:1]) + s[1:] }
 
@@ -344,7 +342,6 @@ func (x *xrpc) generateClientMethod(servName, fullServName, serviceDescVar strin
 	x.P("func (c *", unexport(servName), "Client) ", x.generateClientSignature(servName, method), "{")
 	if !method.GetServerStreaming() && !method.GetClientStreaming() {
 		x.P("out := new(", outType, ")")
-		// TODO: Pass descExpr to Invoke.
 		x.P(`err := c.cc.Invoke(ctx, "`, sname, `", in, out, opts...)`)
 		x.P("if err != nil { return nil, err }")
 		x.P("return out, nil")

@@ -139,6 +139,11 @@ func invoke(ctx context.Context, method string, req, reply interface{}, cc *Clie
 	if err != nil {
 		return
 	}
+	for k, v := range cc.args {
+		if vv, ok := v.(string); ok {
+			ctx = SetCookie(ctx, k, vv)
+		}
+	}
 	if err := cs.SendMsg(ctx, req); err != nil {
 		return err
 	}

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/edenzhong7/xrpc/api"
+
 	"github.com/edenzhong7/xrpc"
 	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/edenzhong7/xrpc/plugin/crypto"
@@ -23,6 +25,7 @@ var (
 	enablePlugin = true
 	enableAuth   = true
 	enableCrypto = true
+	enableAPI    = true
 )
 
 type MathImpl struct {
@@ -82,6 +85,9 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 	if enableAuth {
 		admin := xrpc.NewAdminAuthenticator(user, pass)
 		s.SetAuthenticator(admin)
+	}
+	if enableAPI {
+		api.Server(":8080")
 	}
 	return lis, s
 }
