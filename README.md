@@ -138,3 +138,64 @@ func RunMathClient() {
     log.Printf("new num: %d", n.Val)
 }
 ```
+
+### 直接调用服务
+#### CustomServer
+```go
+var (
+	sessionID  = "session_math_0"
+	sessionKey = "1234"
+
+	user = "admin"
+	pass = "1234"
+	ctx  = context.Background()
+)
+
+func setupConn(conn *xrpc.ClientConn) {
+	cryptoPlugin := crypto.New()
+	cryptoPlugin.SetKey(sessionID, sessionKey)
+	conn.ApplyPlugins(cryptoPlugin)
+
+	conn.SetHeaderArg("user", user)
+	conn.SetHeaderArg("pass", pass)
+	conn.SetHeaderArg(crypto.Key, sessionID)
+}
+
+func TestCustomServer(t *testing.T) {
+	lis, s := newServer("tcp", "localhost:9898")
+	s.RegisterCustomService("math", &Math{})
+	s.RegisterFunction("default", "Double", func(a int) int {
+		return a * 2
+	})
+	s.RegisterFunction("default", "RpcDouble", func(c *xrpc.XContext, a int) int {
+		client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+		if err != nil {
+			return 0
+		}
+		client.Setup(setupConn)
+
+		var r int
+		err = client.RawCall(c, "default.Double", &r, a)
+		return r
+	})
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+	s.Start()
+}
+```
+#### Client
+```go
+func TestCustomClientTrace(t *testing.T) {
+	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+	assert.Equal(t, nil, err)
+	client.Setup(setupConn)
+	var c int
+	xctx := xrpc.XBackground()
+	err = client.RawCall(xctx, "default.RpcDouble", &c, 10)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 20, c)
+}
+```
+
+RpcDouble中新建client调用了实际的Double计算，测试多级rpc调用时trace能正确记录

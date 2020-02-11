@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/edenzhong7/xrpc/plugin"
 
@@ -75,7 +76,12 @@ func (rc *RawClient) Setup(s func(cc *ClientConn)) {
 
 func (rc *RawClient) RawCall(ctx context.Context, method string, reply interface{}, args ...interface{}) (err error) {
 	ctx = context.WithValue(ctx, "codec", "json")
-	cs, err := rc.cc.NewStream(ctx, RawRPC, nil, method)
+	arr := strings.Split(method, ".")
+	if len(arr) != 2 {
+		return errors.New("method name should be: xxx.xxx")
+	}
+	fullMethod := fmt.Sprintf("/%s.%s/%s", customPrefix, arr[0], arr[1])
+	cs, err := rc.cc.NewStream(ctx, RawRPC, nil, fullMethod)
 	if err != nil {
 		return
 	}

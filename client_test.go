@@ -71,6 +71,17 @@ var (
 	name = "xrpc_test!!"
 )
 
+func TestCustomClientTrace(t *testing.T) {
+	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+	assert.Equal(t, nil, err)
+	client.Setup(setupConn)
+	var c int
+	xctx := xrpc.XBackground()
+	err = client.RawCall(xctx, "default.RpcDouble", &c, 10)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 20, c)
+}
+
 func TestCustomClient(t *testing.T) {
 	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
 	assert.Equal(t, nil, err)

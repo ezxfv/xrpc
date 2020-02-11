@@ -13,6 +13,10 @@ import (
 	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
 )
 
+const (
+	customPrefix = "custom"
+)
+
 // ServiceInfo service info.
 type ServiceInfo struct {
 	Name    string
@@ -34,19 +38,22 @@ type MethodInfo struct {
 	Reply     string
 }
 
-func _call(f reflect.Value, params ...interface{}) (out []interface{}, err error) {
+func Call(f reflect.Value, params ...interface{}) (out []interface{}, err error) {
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("the number of params is not adapted")
 		return
 	}
-
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
 		v := reflect.ValueOf(param)
 		if f.Type().In(k).Kind() == reflect.Ptr {
 			in[k] = v
 		} else {
-			in[k] = v.Elem()
+			if v.Kind() == reflect.Ptr {
+				in[k] = v.Elem()
+			} else {
+				in[k] = v
+			}
 		}
 	}
 	resValues := f.Call(in)
@@ -85,6 +92,7 @@ func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{})
 	if _, ok := r.m[serviceName]; ok {
 		log.Fatalf("Server.RegisterCustomService found duplicate service registration for %q", serviceName)
 	}
+	serviceName = customPrefix + "." + serviceName
 	srv := &customService{
 		name: serviceName,
 		ss:   ss,
@@ -99,6 +107,7 @@ func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{})
 }
 
 func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn interface{}) {
+	serviceName = customPrefix + "." + serviceName
 	if _, ok := r.m[serviceName]; !ok {
 		r.m[serviceName] = &customService{
 			name: serviceName,
@@ -109,32 +118,35 @@ func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn int
 	r.m[serviceName].md[fname] = reflect.ValueOf(fn)
 }
 
-func (r *CustomServer) RpcCall(ctx context.Context, method string, dec func(interface{}) error, interceptor UnaryServerInterceptor) (reply interface{}, err error) {
-	info := strings.Split(method, ".")
-	if len(info) != 2 {
-		err = errors.New("invalid method string")
-		return
-	}
-	srv, knownService := r.m[info[0]]
+func (r *CustomServer) RpcCall(ctx context.Context, service, method string, dec func(interface{}) error, interceptor UnaryServerInterceptor) (reply interface{}, err error) {
+	srv, knownService := r.m[service]
 	if knownService {
-		if md, ok := srv.md[info[1]]; ok {
-			ins, _, ok := r.pool.GenArgsForFunc(md)
+		if md, ok := srv.md[method]; ok {
+			ins, _, hasCtx, ok := r.pool.GenArgsForFunc(md)
 			if !ok {
 				return nil, errors.New("gen args failed")
+			}
+			if hasCtx {
+				ins = ins[1:]
 			}
 			err = dec(&ins)
 			if err != nil {
 				return
 			}
+			if hasCtx {
+				xctx := XBackground()
+				xctx.SetCtx(ctx)
+				ins = append([]interface{}{xctx}, ins[:]...)
+			}
 			if interceptor == nil {
-				reply, err = _call(md, ins...)
+				reply, err = Call(md, ins...)
 			} else {
 				info := &UnaryServerInfo{
 					Server:     srv,
-					FullMethod: method,
+					FullMethod: fmt.Sprintf("/%s/%s", service, method),
 				}
 				handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-					return _call(md, ins...)
+					return Call(md, ins...)
 				}
 				reply, err = interceptor(ctx, ins, info, handler)
 			}
@@ -143,7 +155,7 @@ func (r *CustomServer) RpcCall(ctx context.Context, method string, dec func(inte
 	return
 }
 
-func (r *CustomServer) Call(method string, data []byte) (result interface{}, err error) {
+func (r *CustomServer) DirectCall(method string, data []byte) (result interface{}, err error) {
 	info := strings.Split(method, ".")
 	if len(info) != 2 {
 		err = errors.New("invalid method string")
@@ -152,7 +164,7 @@ func (r *CustomServer) Call(method string, data []byte) (result interface{}, err
 	srv, knownService := r.m[info[0]]
 	if knownService {
 		if md, ok := srv.md[info[1]]; ok {
-			ins, _, ok := r.pool.GenArgsForFunc(md)
+			ins, _, _, ok := r.pool.GenArgsForFunc(md)
 			if !ok {
 				println("gen args failed")
 				return nil, nil
@@ -161,7 +173,7 @@ func (r *CustomServer) Call(method string, data []byte) (result interface{}, err
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-			result, err = _call(md, ins...)
+			result, err = Call(md, ins...)
 			return
 		}
 	}

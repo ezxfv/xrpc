@@ -129,10 +129,9 @@ func TestTracePlugin(t *testing.T) {
 		}
 
 		info := &xrpc.UnaryServerInfo{FullMethod: "test_trace_plugin"}
-		xctx := context.NewContext(ctx)
-		xctx, err := p.PreHandle(xctx, nil, info)
+		ctx, err := p.PreHandle(ctx, nil, info)
 		time.Sleep(time.Millisecond * 200)
-		p.PostHandle(xctx, nil, nil, info, err)
+		p.PostHandle(ctx, nil, nil, info, err)
 		span.Finish()
 	}
 	// 需要delay刷新数据，或者手动Close刷掉缓存

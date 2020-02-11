@@ -21,11 +21,17 @@ func (p *argsPool) New(t reflect.Type) interface{} {
 	return argv.Interface()
 }
 
-func (p *argsPool) GenArgsForFunc(fn reflect.Value) (ins []interface{}, outs []interface{}, ok bool) {
+func (p *argsPool) GenArgsForFunc(fn reflect.Value) (ins []interface{}, outs []interface{}, hasCtx, ok bool) {
 	if fn.Kind() != reflect.Func {
 		return
 	}
 	t := fn.Type()
+	if t.NumIn() > 0 {
+		ss := t.In(0).String()
+		if ss == "*xrpc.XContext" {
+			hasCtx = true
+		}
+	}
 	for i := 0; i < t.NumIn(); i++ {
 		ins = append(ins, p.New(t.In(i)))
 	}

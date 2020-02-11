@@ -12,7 +12,6 @@ import (
 	"github.com/edenzhong7/xrpc"
 	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/edenzhong7/xrpc/plugin/crypto"
-	"github.com/edenzhong7/xrpc/plugin/logp"
 	"github.com/edenzhong7/xrpc/plugin/prom"
 	"github.com/edenzhong7/xrpc/plugin/trace"
 	"github.com/edenzhong7/xrpc/plugin/whitelist"
@@ -71,10 +70,10 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 	s := xrpc.NewServer()
 	if enablePlugin {
 		promPlugin := prom.New()
-		logPlugin := logp.New()
+		//logPlugin := logp.New()
 		tracePlugin := trace.New()
 		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
-		s.ApplyPlugins(promPlugin, logPlugin, tracePlugin, whitelistPlugin)
+		s.ApplyPlugins(promPlugin, tracePlugin, whitelistPlugin)
 		if enableCrypto {
 			cryptoPlugin := crypto.New()
 			cryptoPlugin.SetKey(sessionID, sessionKey)
@@ -97,6 +96,21 @@ func TestCustomServer(t *testing.T) {
 	s.RegisterCustomService("math", &Math{})
 	s.RegisterFunction("default", "Double", func(a int) int {
 		return a * 2
+	})
+	s.RegisterFunction("default", "Add", func(a, b int) int {
+		return a + b
+	})
+	s.RegisterFunction("default", "RpcDouble", func(c *xrpc.XContext, a int) int {
+		client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+		if err != nil {
+			return 0
+		}
+		client.Setup(setupConn)
+
+		var r1, r2 int
+		err = client.RawCall(c.Context(), "default.Double", &r1, a)
+		err = client.RawCall(c.Context(), "default.Add", &r2, a, a)
+		return r1
 	})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

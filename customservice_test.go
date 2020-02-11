@@ -37,7 +37,7 @@ func TestCustomService_Call(t *testing.T) {
 	)
 	args := []interface{}{a, b}
 	data, _ := jsoniter.Marshal(args)
-	res, _ := cs.Call("math.Add", data)
+	res, _ := cs.DirectCall("math.Add", data)
 	xrpc.Dispatch(res, &c, &d)
 }
 
@@ -52,10 +52,10 @@ func TestCustomService_RegisterFunction(t *testing.T) {
 	)
 	args := []interface{}{&a, &b}
 	data, _ := jsoniter.Marshal(args)
-	res, _ := cs.Call("math.Sub", data)
+	res, _ := cs.DirectCall("math.Sub", data)
 	xrpc.Dispatch(res, &c)
 	println(c)
-	res, _ = cs.Call("math.Add", data)
+	res, _ = cs.DirectCall("math.Add", data)
 	xrpc.Dispatch(res, &c)
 	println(c)
 }
@@ -71,7 +71,7 @@ func BenchmarkCustomService_RegisterFunction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		args := []interface{}{&a1, &a2}
 		data, _ := jsoniter.Marshal(args)
-		res, _ := cs.Call("math.Sub", data)
+		res, _ := cs.DirectCall("math.Sub", data)
 		xrpc.Dispatch(res, &c)
 	}
 }

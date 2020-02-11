@@ -219,6 +219,10 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
 	defer s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
+	service, method := header.splitMethod()
+	if service == "" || method == "" {
+		return
+	}
 	if header.RpcType == RawRPC {
 		// RawRPC
 		var newCtx context.Context
@@ -229,7 +233,7 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 		}
 		for {
 			newCtx = ctx
-			reply, err := s.RpcCall(newCtx, header.FullMethod, dec, s.pc.DoHandle)
+			reply, err := s.RpcCall(newCtx, service, method, dec, s.pc.DoHandle)
 			if err != nil {
 				break
 			}
@@ -246,11 +250,6 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 	}
 
 	// XRPC
-	service, method := header.splitMethod()
-	if service == "" || method == "" {
-		return
-	}
-
 	srv := s.m[service].server
 	desc := s.m[service].md[method]
 	var newCtx context.Context

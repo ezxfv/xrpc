@@ -43,25 +43,30 @@ type tracePlugin struct {
 
 func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc.UnaryServerInfo) (context.Context, error) {
 	spanContext, err := t.tracer.Extract(opentracing.TextMap, NewSpanCtxReader(ctx))
+	var span opentracing.Span
 	if err != nil {
-		spanContext = opentracing.StartSpan("root://" + info.FullMethod).Context()
+		span = t.tracer.StartSpan(
+			info.FullMethod,
+		)
+	} else {
+		span = t.tracer.StartSpan(
+			info.FullMethod,
+			ext.RPCServerOption(spanContext),
+		)
 	}
 	if t.otgrpcOpts.inclusionFunc != nil &&
 		!t.otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, req, nil) {
 		return ctx, nil
 	}
-	serverSpan := t.tracer.StartSpan(
-		info.FullMethod,
-		ext.RPCServerOption(spanContext),
-	)
-	serverSpan.SetTag("xrpc", "dev")
-	ctx = opentracing.ContextWithSpan(ctx, serverSpan)
+
+	span.SetTag("xrpc", "dev")
+	ctx = opentracing.ContextWithSpan(ctx, span)
 	if t.otgrpcOpts.logPayloads {
-		serverSpan.LogFields(log.Object("xrpc request", req))
+		span.LogFields(log.Object("xrpc request", req))
 	}
-	ctx = context.WithValue(ctx, SpanKey, serverSpan)
+	ctx = context.WithValue(ctx, SpanKey, span)
 	w := NewSpanCtxWriter()
-	err = t.tracer.Inject(serverSpan.Context(), opentracing.TextMap, w)
+	err = t.tracer.Inject(span.Context(), opentracing.TextMap, w)
 	if err != nil {
 		return ctx, err
 	}
@@ -109,13 +114,17 @@ type SpanCtxReader struct {
 func (m *SpanCtxReader) ForeachKey(handler func(key, val string) error) (err error) {
 	for _, k := range SpanKeys {
 		v := m.ctx.Value(k)
+		vv := ""
 		if v != nil {
 			if sv, ok := v.(string); ok {
-				err = handler(k, sv)
-				if err != nil {
-					return err
-				}
+				vv = sv
 			}
+		} else {
+			vv = xrpc.GetCookie(m.ctx, k)
+		}
+		err = handler(k, vv)
+		if err != nil {
+			return err
 		}
 	}
 	return
