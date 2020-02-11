@@ -87,6 +87,8 @@ type clientStream struct {
 	header *streamHeader
 	codec  encoding.Codec
 	cp     encoding.Compressor
+
+	pioc plugin.IOContainer
 }
 
 func (cs *clientStream) Close() error {
@@ -117,11 +119,19 @@ func (cs *clientStream) SendMsg(ctx context.Context, m interface{}) error {
 		}
 	}
 	compData = cbuf.Bytes()
-	hdr, payload := msgHeader(data, compData)
+	comp := false
+	if len(compData) > 0 {
+		data = compData
+		comp = true
+	}
+	if data, err = cs.pioc.DoPreWriteResponse(ctx, data); err != nil {
+		return err
+	}
+	hdr := msgHeader(data, comp)
 	if _, err = cs.stream.Write(hdr); err != nil {
 		return err
 	}
-	if _, err = cs.stream.Write(payload); err != nil {
+	if _, err = cs.stream.Write(data); err != nil {
 		return err
 	}
 	return nil
@@ -154,6 +164,9 @@ func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 	if err != nil {
 		return ctx, err
 	}
+	if msg, err = cs.pioc.DoPreReadRequest(ctx, msg); err != nil {
+		return ctx, err
+	}
 	var data []byte
 	if pf == compressionMade {
 		dc, _ := cs.cp.Decompress(bytes.NewReader(msg))
@@ -166,7 +179,7 @@ func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 	}
 	ctx, l := ReadCookiesHeader(ctx, data)
 	if err = cs.codec.Unmarshal(data[l:], m); err != nil {
-		return ctx, errors.New(fmt.Sprintf("grpc: failed to unmarshal the received message %v", err))
+		return ctx, errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message %v", err))
 	}
 	return ctx, nil
 }
@@ -212,13 +225,9 @@ func (ss *serverStream) Context() context.Context {
 }
 
 func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) {
-	// TODO DoPreWriteResponse
-	if err = ss.sc.DoPreWriteResponse(ss.ctx, nil, m); err != nil {
-		return err
-	}
 	defer func() {
-		// TODO DoPostWriteResponse
-		err = ss.sc.DoPostWriteResponse(ss.ctx, nil, m, err)
+		// DoPostWriteResponse
+		err = ss.sc.DoPostWriteResponse(ctx, nil, m, err)
 	}()
 	data, err := ss.codec.Marshal(m)
 	if err != nil {
@@ -238,23 +247,32 @@ func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) 
 		}
 	}
 	compData = cbuf.Bytes()
-	hdr, payload := msgHeader(data, compData)
+	comp := false
+	if len(compData) != 0 {
+		data = compData
+		comp = true
+	}
+	// DoPreWriteResponse
+	if data, err = ss.sc.DoPreWriteResponse(ctx, data); err != nil {
+		return err
+	}
+	hdr := msgHeader(data, comp)
 	if _, err = ss.stream.Write(hdr); err != nil {
 		return err
 	}
-	if _, err = ss.stream.Write(payload); err != nil {
+	if _, err = ss.stream.Write(data); err != nil {
 		return err
 	}
 	return err
 }
 
 func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Context, error) {
-	// TODO DoPreReadRequest
-	if err := ss.sc.DoPreReadRequest(ss.ctx); err != nil {
-		return ctx, err
-	}
 	pf, msg, err := recv(ss.stream)
 	if err != nil {
+		return ctx, err
+	}
+	// TODO DoPreReadRequest
+	if msg, err = ss.sc.DoPreReadRequest(ctx, msg); err != nil {
 		return ctx, err
 	}
 	var data []byte
@@ -276,7 +294,7 @@ func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 		err = errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message for %v", err))
 	}
 	// TODO DoPostReadRequest
-	err = ss.sc.DoPostReadRequest(ss.ctx, m, err)
+	err = ss.sc.DoPostReadRequest(ctx, m, err)
 	return ctx, err
 }
 

@@ -202,13 +202,20 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 				codec:  encoding.GetCodec(getCodecArg(header)),
 				cp:     encoding.GetCompressor(getCompressorArg(header)),
 				sc:     s.pc,
+				header: header,
 			}
-			ss.header = header
 			// TODO DoOpenStream
 			if _, err = s.pc.DoOpenStream(context.Background(), stream); err != nil {
 				continue
 			}
-			go s.processStream(s.ctx, ss, header)
+
+			ctx := context.Background()
+			for k, v := range header.Args {
+				if vv, ok := v.(string); ok {
+					ctx = SetCookie(ctx, k, vv)
+				}
+			}
+			go s.processStream(ctx, ss, header)
 		}
 	}
 	// TODO DoDisconnect

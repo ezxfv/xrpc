@@ -9,6 +9,7 @@ import (
 
 	"github.com/edenzhong7/xrpc"
 	"github.com/edenzhong7/xrpc/pkg/net"
+	"github.com/edenzhong7/xrpc/plugin/crypto"
 	"github.com/edenzhong7/xrpc/plugin/logp"
 	"github.com/edenzhong7/xrpc/plugin/prom"
 	"github.com/edenzhong7/xrpc/plugin/trace"
@@ -21,9 +22,7 @@ import (
 var (
 	enablePlugin = true
 	enableAuth   = true
-
-	user = "admin"
-	pass = "1234"
+	enableCrypto = true
 )
 
 type MathImpl struct {
@@ -73,6 +72,11 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 		tracePlugin := trace.New()
 		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
 		s.ApplyPlugins(promPlugin, logPlugin, tracePlugin, whitelistPlugin)
+		if enableCrypto {
+			cryptoPlugin := crypto.New()
+			cryptoPlugin.SetKey(sessionID, sessionKey)
+			s.ApplyPlugins(cryptoPlugin)
+		}
 		s.StartPlugins()
 	}
 	if enableAuth {

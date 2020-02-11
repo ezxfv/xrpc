@@ -61,16 +61,14 @@ func getCompressorArg(header *streamHeader) string {
 
 // msgHeader returns a 5-byte header for the message being transmitted and the
 // payload, which is compData if non-nil or data otherwise.
-func msgHeader(data, compData []byte) (hdr []byte, payload []byte) {
+func msgHeader(data []byte, comp bool) (hdr []byte) {
 	hdr = make([]byte, headerLen)
-	if compData != nil {
+	if comp {
 		hdr[0] = byte(compressionMade)
-		data = compData
 	} else {
 		hdr[0] = byte(compressionNone)
 	}
-
 	// Write length of payload into buf
 	binary.BigEndian.PutUint32(hdr[payloadLen:], uint32(len(data)))
-	return hdr, data
+	return hdr
 }

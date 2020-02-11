@@ -39,10 +39,10 @@ type Container interface {
 }
 
 type IOContainer interface {
-	DoPreReadRequest(ctx context.Context) error
+	DoPreReadRequest(ctx context.Context, data []byte) ([]byte, error)
 	DoPostReadRequest(ctx context.Context, r interface{}, e error) error
 
-	DoPreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error
+	DoPreWriteResponse(ctx context.Context, data []byte) ([]byte, error)
 	DoPostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error
 }
 
@@ -88,7 +88,7 @@ type (
 	}
 
 	PreReadRequestPlugin interface {
-		PreReadRequest(ctx context.Context) error
+		PreReadRequest(ctx context.Context, data []byte) ([]byte, error)
 	}
 
 	PostReadRequestPlugin interface {
@@ -104,7 +104,7 @@ type (
 	}
 
 	PreWriteResponsePlugin interface {
-		PreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error
+		PreWriteResponse(ctx context.Context, data []byte) ([]byte, error)
 	}
 
 	PostWriteResponsePlugin interface {
@@ -148,6 +148,10 @@ func NewPluginContainer() Container {
 		mu: &sync.Mutex{},
 	}
 	return pc
+}
+
+func NewIOPluginContainer() IOContainer {
+	return NewPluginContainer()
 }
 
 //
@@ -388,15 +392,15 @@ func (pc *pluginContainer) DoCloseStream(ctx context.Context, conn net.Conn) (co
 	return ctx, err
 }
 
-func (pc *pluginContainer) DoPreReadRequest(ctx context.Context) error {
+func (pc *pluginContainer) DoPreReadRequest(ctx context.Context, data []byte) ([]byte, error) {
 	var err error
 	for p := range pc.prrp {
-		err = p.PreReadRequest(ctx)
+		data, err = p.PreReadRequest(ctx, data)
 		if err != nil {
 			break
 		}
 	}
-	return err
+	return data, err
 }
 
 func (pc *pluginContainer) DoPostReadRequest(ctx context.Context, r interface{}, e error) error {
@@ -428,15 +432,15 @@ func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *
 	return resp, err
 }
 
-func (pc *pluginContainer) DoPreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error {
+func (pc *pluginContainer) DoPreWriteResponse(ctx context.Context, data []byte) ([]byte, error) {
 	var err error
 	for p := range pc.pwrp {
-		err = p.PreWriteResponse(ctx, req, resp)
+		data, err = p.PreWriteResponse(ctx, data)
 		if err != nil {
 			break
 		}
 	}
-	return err
+	return data, err
 }
 
 func (pc *pluginContainer) DoPostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error {

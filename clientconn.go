@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/edenzhong7/xrpc/plugin"
+
 	"github.com/edenzhong7/xrpc/pkg/encoding"
 	"github.com/edenzhong7/xrpc/pkg/net"
-
 	"github.com/xtaci/smux"
 )
 
@@ -20,6 +21,7 @@ type ClientConn struct {
 	streamCache map[string]ClientStream
 
 	args map[string]interface{}
+	pioc plugin.Container
 }
 
 type CallOption struct {
@@ -50,10 +52,16 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 		conn:        conn,
 		streamCache: map[string]ClientStream{},
 		args:        map[string]interface{}{},
+		pioc:        plugin.NewPluginContainer(),
 	}
 	return
 }
 
+func (cc *ClientConn) ApplyPlugins(plugins ...plugin.Plugin) {
+	for _, pp := range plugins {
+		cc.pioc.Add(pp)
+	}
+}
 func (cc *ClientConn) SetHeaderArg(key string, value interface{}) {
 	cc.args[key] = value
 }
@@ -102,12 +110,12 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	if err != nil {
 		return nil, err
 	}
-	hdr, data := msgHeader(headerJson, nil)
+	hdr := msgHeader(headerJson, false)
 	hdr[0] = byte(cmdHeader)
 	if _, err = stream.Write(hdr); err != nil {
 		return nil, err
 	}
-	if _, err = stream.Write(data); err != nil {
+	if _, err = stream.Write(headerJson); err != nil {
 		return nil, err
 	}
 	cs = &clientStream{
@@ -115,6 +123,7 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 		header: header,
 		codec:  encoding.GetCodec(cc.dopts.codec),
 		cp:     encoding.GetCompressor(cc.dopts.compressor),
+		pioc:   cc.pioc,
 	}
 	cc.streamCache[streamKey] = cs
 	return cs, err

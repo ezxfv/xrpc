@@ -47,10 +47,8 @@ func (*AesEncryptor) Decrypt(cryptedData, key []byte) ([]byte, error) {
 	blockSize := block.BlockSize()
 	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
 	origData := make([]byte, len(cryptedData))
-	// origData := crypted
 	blockMode.CryptBlocks(origData, cryptedData)
 	origData = PKCS5UnPadding(origData)
-	// origData = ZeroUnPadding(origData)
 	return origData, nil
 }
 

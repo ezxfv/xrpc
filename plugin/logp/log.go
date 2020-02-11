@@ -65,19 +65,9 @@ func (p *logPlugin) Disconnect(conn net.Conn) bool {
 	return true
 }
 
-func (p *logPlugin) OpenStream(ctx context.Context, conn net.Conn) error {
-	p.l.Debugf("Open stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
-	return nil
-}
-
-func (p *logPlugin) CloseStream(ctx context.Context, conn net.Conn) error {
-	p.l.Debugf("Stop stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
-	return nil
-}
-
-func (p *logPlugin) PreReadRequest(ctx context.Context) error {
+func (p *logPlugin) PreReadRequest(ctx context.Context, data []byte) ([]byte, error) {
 	p.l.Debugf("PreReadRequest\n")
-	return nil
+	return data, nil
 }
 
 func (p *logPlugin) PostReadRequest(ctx context.Context, r interface{}, e error) error {
@@ -85,19 +75,19 @@ func (p *logPlugin) PostReadRequest(ctx context.Context, r interface{}, e error)
 	return nil
 }
 
-func (p *logPlugin) PreHandle(ctx context.Context, r interface{}) error {
+func (p *logPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
 	p.l.Debugf("PreHandle\n")
-	return nil
+	return ctx, nil
 }
 
-func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, e error) error {
+func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error) {
 	p.l.Debugf("PostHandle\n")
-	return nil
+	return ctx, nil
 }
 
-func (p *logPlugin) PreWriteResponse(ctx context.Context, req interface{}, resp interface{}) error {
+func (p *logPlugin) PreWriteResponse(ctx context.Context, data []byte) ([]byte, error) {
 	p.l.Debugf("PreWriteResponse\n")
-	return nil
+	return data, nil
 }
 
 func (p *logPlugin) PostWriteResponse(ctx context.Context, req interface{}, resp interface{}, e error) error {
