@@ -235,7 +235,7 @@ func (x *xrpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 		x.P(deprecationComment)
 	}
 	x.P("func Register", servName, "Server(s *", xrpcPkg, ".Server, srv ", serverType, ") {")
-	x.P("s.RegisterService(&", serviceDescVar, `, srv)`)
+	x.P("s.RegisterCustomService(&", serviceDescVar, `, srv)`)
 	x.P("}")
 	x.P()
 

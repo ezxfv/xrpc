@@ -24,14 +24,15 @@ type (
 func NewServer() *Server {
 	pc := plugin.NewPluginContainer()
 	s := &Server{
-		m:        map[string]*service{},
-		mu:       &sync.Mutex{},
-		lis:      map[net.Listener]bool{},
-		conns:    map[net.Conn]bool{},
-		sessions: map[*smux.Session]bool{},
-		pc:       pc,
-		ctx:      context.Background(),
-		auth:     NewEmptyAuthenticator(),
+		CustomServer: NewCustomServer(),
+		m:            map[string]*service{},
+		mu:           &sync.Mutex{},
+		lis:          map[net.Listener]bool{},
+		conns:        map[net.Conn]bool{},
+		sessions:     map[*smux.Session]bool{},
+		pc:           pc,
+		ctx:          context.Background(),
+		auth:         NewEmptyAuthenticator(),
 	}
 	return s
 }
@@ -46,6 +47,7 @@ type service struct {
 }
 
 type Server struct {
+	*CustomServer
 	opts *options
 
 	serve  bool
@@ -103,19 +105,11 @@ func (s *Server) Start() {
 	}
 }
 
-func (s *Server) RegisterFunction(serviceName, fname string, fn interface{}, metadata string) {
-	// DoRegisterFunction
-}
-
-func (s *Server) RegisterCustomService(sd *ServiceDesc, ss interface{}) {
-	// DoRegisterCustomService
-}
-
 func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 	ht := reflect.TypeOf(sd.HandlerType).Elem()
 	st := reflect.TypeOf(ss)
 	if !st.Implements(ht) {
-		log.Fatalf("xrpc: Server.RegisterService found the handler of type %v that does not satisfy %v", st, ht)
+		log.Fatalf("xrpc: Server.RegisterCustomService found the handler of type %v that does not satisfy %v", st, ht)
 	}
 	s.register(sd, ss)
 }
@@ -124,10 +118,10 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.serve {
-		log.Fatalf("xrpc: Server.RegisterService after Server.Serve for %q", sd.ServiceName)
+		log.Fatalf("xrpc: Server.RegisterCustomService after Server.Serve for %q", sd.ServiceName)
 	}
 	if _, ok := s.m[sd.ServiceName]; ok {
-		log.Fatalf("xrpc: Server.RegisterService found duplicate service registration for %q", sd.ServiceName)
+		log.Fatalf("xrpc: Server.RegisterCustomService found duplicate service registration for %q", sd.ServiceName)
 	}
 	srv := &service{
 		server: ss,
@@ -204,12 +198,13 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 				sc:     s.pc,
 				header: header,
 			}
+
+			ctx := context.Background()
 			// DoOpenStream
-			if _, err = s.pc.DoOpenStream(context.Background(), stream); err != nil {
+			if ctx, err = s.pc.DoOpenStream(ctx, stream); err != nil {
 				continue
 			}
 
-			ctx := context.Background()
 			for k, v := range header.Args {
 				if vv, ok := v.(string); ok {
 					ctx = SetCookie(ctx, k, vv)
@@ -223,12 +218,39 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 }
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
-	log.Debug("process server stream")
-	defer log.Debug("close server stream")
+	defer s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
+	if header.RpcType == RawRPC {
+		// RawRPC
+		var newCtx context.Context
+
+		dec := func(m interface{}) (err error) {
+			newCtx, err = stream.RecvMsg(newCtx, m)
+			return
+		}
+		for {
+			newCtx = ctx
+			reply, err := s.RpcCall(newCtx, header.FullMethod, dec, s.pc.DoHandle)
+			if err != nil {
+				break
+			}
+			if res, ok := reply.([]interface{}); ok {
+				if len(res) == 1 {
+					reply = res[0]
+				}
+			}
+			if err = stream.SendMsg(newCtx, reply); err != nil {
+				break
+			}
+		}
+		return
+	}
+
+	// XRPC
 	service, method := header.splitMethod()
 	if service == "" || method == "" {
 		return
 	}
+
 	srv := s.m[service].server
 	desc := s.m[service].md[method]
 	var newCtx context.Context
@@ -247,6 +269,4 @@ func (s *Server) processStream(ctx context.Context, stream ServerStream, header 
 			break
 		}
 	}
-	// DoCloseStream
-	s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
 }

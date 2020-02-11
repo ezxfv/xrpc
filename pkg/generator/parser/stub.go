@@ -306,7 +306,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 		}
 		// Server registration.
 		x.P("func Register", servName, "Server(s *xrpc.Server, srv ", servName, ") {")
-		x.P("s.RegisterService(&", serviceDescVar, `, srv)`)
+		x.P("s.RegisterCustomService(&", serviceDescVar, `, srv)`)
 		x.P("}")
 		x.P()
 

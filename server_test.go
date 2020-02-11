@@ -87,9 +87,21 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 		s.SetAuthenticator(admin)
 	}
 	if enableAPI {
-		api.Server(":8080")
+		go api.Server(":8080")
 	}
 	return lis, s
+}
+
+func TestCustomServer(t *testing.T) {
+	lis, s := newServer("tcp", "localhost:9898")
+	s.RegisterCustomService("math", &Math{})
+	s.RegisterFunction("default", "Double", func(a int) int {
+		return a * 2
+	})
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+	s.Start()
 }
 
 func TestMathServer(t *testing.T) {

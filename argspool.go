@@ -36,7 +36,15 @@ func (p *argsPool) GenArgsForFunc(fn reflect.Value) (ins []interface{}, outs []i
 	return
 }
 
-func Dispatch(res []interface{}, vs ...interface{}) {
+func Dispatch(r interface{}, vs ...interface{}) {
+	if r == nil {
+		return
+	}
+	var res []interface{}
+	var ok bool
+	if res, ok = r.([]interface{}); !ok {
+		return
+	}
 	l := 0
 	if len(res) > len(vs) {
 		l = len(vs)

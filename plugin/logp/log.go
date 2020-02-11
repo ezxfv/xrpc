@@ -73,6 +73,16 @@ func (p *logPlugin) Disconnect(conn net.Conn) bool {
 	return true
 }
 
+func (p logPlugin) OpenStream(ctx context.Context, conn net.Conn) (context.Context, error) {
+	p.l.Debugf("Open stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return ctx, nil
+}
+
+func (p logPlugin) CloseStream(ctx context.Context, conn net.Conn) (context.Context, error) {
+	p.l.Debugf("Close stream from %s:%s\n", conn.RemoteAddr().Network(), conn.RemoteAddr().String())
+	return ctx, nil
+}
+
 func (p *logPlugin) PreReadRequest(ctx context.Context, data []byte) ([]byte, error) {
 	p.l.Debugf("PreReadRequest\n")
 	return data, nil

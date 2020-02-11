@@ -71,6 +71,29 @@ var (
 	name = "xrpc_test!!"
 )
 
+func TestCustomClient(t *testing.T) {
+	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+	assert.Equal(t, nil, err)
+	client.Setup(setupConn)
+
+	var c int
+	err = client.RawCall(ctx, "math.Add", &c, 1, 2)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 3, c)
+
+	err = client.RawCall(ctx, "default.Double", &c, 10)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 20, c)
+
+	var d int
+	var f float64
+	reply := []interface{}{&d, &f}
+	err = client.RawCall(ctx, "math.Calc", &reply, 4, 2)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 8, d)
+	assert.Equal(t, 2.0, f)
+}
+
 func TestMathClient(t *testing.T) {
 	if client == nil {
 		client = newMathClient("tcp", "localhost:9898")

@@ -57,6 +57,40 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 	return
 }
 
+func NewRawClient(protocol, addr string, opts ...DialOption) (*RawClient, error) {
+	conn, err := Dial(protocol, addr, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &RawClient{cc: conn}, nil
+}
+
+type RawClient struct {
+	cc *ClientConn
+}
+
+func (rc *RawClient) Setup(s func(cc *ClientConn)) {
+	s(rc.cc)
+}
+
+func (rc *RawClient) RawCall(ctx context.Context, method string, reply interface{}, args ...interface{}) (err error) {
+	ctx = context.WithValue(ctx, "codec", "json")
+	cs, err := rc.cc.NewStream(ctx, RawRPC, nil, method)
+	if err != nil {
+		return
+	}
+	for k, v := range rc.cc.args {
+		if vv, ok := v.(string); ok {
+			ctx = SetCookie(ctx, k, vv)
+		}
+	}
+	if err = cs.SendMsg(ctx, &args); err != nil {
+		return
+	}
+	ctx, err = cs.RecvMsg(ctx, reply)
+	return
+}
+
 func (cc *ClientConn) ApplyPlugins(plugins ...plugin.Plugin) {
 	for _, pp := range plugins {
 		cc.pioc.Add(pp)
@@ -77,7 +111,7 @@ func genStreamKey(network net.Network, addr string, method string) string {
 	return fmt.Sprintf("%s://%s%s", network, addr, method)
 }
 
-func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
+func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
 	var stream net.Conn
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)
@@ -91,12 +125,21 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	}
 	stream = &streamConn{s}
 
-	if err != nil {
-		return nil, err
+	codec := cc.dopts.codec
+	compressor := cc.dopts.compressor
+	if ctx.Value("codec") != nil {
+		if v, ok := ctx.Value("codec").(string); ok {
+			codec = v
+		}
+	}
+	if ctx.Value("compressor") != nil {
+		if v, ok := ctx.Value("compressor").(string); ok {
+			compressor = v
+		}
 	}
 	args := map[string]interface{}{
-		"codec":      cc.dopts.codec,
-		"compressor": cc.dopts.compressor,
+		"codec":      codec,
+		"compressor": compressor,
 	}
 	for k, v := range cc.args {
 		args[k] = v
@@ -104,6 +147,7 @@ func (cc *ClientConn) NewStream(ctx context.Context, desc *StreamDesc, method st
 	header := &streamHeader{
 		Cmd:        Init,
 		FullMethod: method,
+		RpcType:    rpc,
 		Args:       args,
 	}
 	headerJson, err := json.Marshal(&header)
@@ -135,7 +179,7 @@ func (cc *ClientConn) Close() (err error) {
 }
 
 func invoke(ctx context.Context, method string, req, reply interface{}, cc *ClientConn, opts ...CallOption) (err error) {
-	cs, err := cc.NewStream(ctx, nil, method, opts...)
+	cs, err := cc.NewStream(ctx, XRPC, nil, method, opts...)
 	if err != nil {
 		return
 	}

@@ -42,7 +42,7 @@ func (r *ReflectDemo) RegisterService(serviceName string, ss interface{}) (err e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.m[serviceName]; ok {
-		log.Fatalf("Server.RegisterService found duplicate service registration for %q", serviceName)
+		log.Fatalf("Server.RegisterCustomService found duplicate service registration for %q", serviceName)
 	}
 	srv := &service{
 		name: serviceName,

@@ -42,10 +42,9 @@ type tracePlugin struct {
 }
 
 func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc.UnaryServerInfo) (context.Context, error) {
-	println("trace pre")
 	spanContext, err := t.tracer.Extract(opentracing.TextMap, NewSpanCtxReader(ctx))
 	if err != nil {
-		return ctx, err
+		spanContext = opentracing.StartSpan("root://" + info.FullMethod).Context()
 	}
 	if t.otgrpcOpts.inclusionFunc != nil &&
 		!t.otgrpcOpts.inclusionFunc(spanContext, info.FullMethod, req, nil) {
@@ -73,7 +72,6 @@ func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc
 }
 
 func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *xrpc.UnaryServerInfo, err error) (context.Context, error) {
-	println("trace post")
 	serverSpan, ok := ctx.Value(SpanKey).(opentracing.Span)
 	if !ok {
 		return ctx, errors.New("trace plugin get server_span failed")

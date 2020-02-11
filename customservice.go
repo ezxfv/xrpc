@@ -62,8 +62,8 @@ type customService struct {
 	md   map[string]reflect.Value
 }
 
-func NewCustomService() *CustomService {
-	return &CustomService{
+func NewCustomServer() *CustomServer {
+	return &CustomServer{
 		pool:  &argsPool{pools: &sync.Pool{}},
 		m:     map[string]*customService{},
 		codec: encoding.GetCodec("json"),
@@ -71,19 +71,19 @@ func NewCustomService() *CustomService {
 	}
 }
 
-type CustomService struct {
+type CustomServer struct {
 	pool  *argsPool
 	m     map[string]*customService
 	codec encoding.Codec
 	mu    *sync.Mutex
 }
 
-func (r *CustomService) RegisterService(serviceName string, ss interface{}) (err error) {
+func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{}) (err error) {
 	sv := reflect.ValueOf(ss)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.m[serviceName]; ok {
-		log.Fatalf("Server.RegisterService found duplicate service registration for %q", serviceName)
+		log.Fatalf("Server.RegisterCustomService found duplicate service registration for %q", serviceName)
 	}
 	srv := &customService{
 		name: serviceName,
@@ -98,7 +98,7 @@ func (r *CustomService) RegisterService(serviceName string, ss interface{}) (err
 	return
 }
 
-func (r *CustomService) RegisterFunction(serviceName string, fname string, fn interface{}) {
+func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn interface{}) {
 	if _, ok := r.m[serviceName]; !ok {
 		r.m[serviceName] = &customService{
 			name: serviceName,
@@ -109,7 +109,41 @@ func (r *CustomService) RegisterFunction(serviceName string, fname string, fn in
 	r.m[serviceName].md[fname] = reflect.ValueOf(fn)
 }
 
-func (r *CustomService) Call(method string, data []byte) (result []interface{}, err error) {
+func (r *CustomServer) RpcCall(ctx context.Context, method string, dec func(interface{}) error, interceptor UnaryServerInterceptor) (reply interface{}, err error) {
+	info := strings.Split(method, ".")
+	if len(info) != 2 {
+		err = errors.New("invalid method string")
+		return
+	}
+	srv, knownService := r.m[info[0]]
+	if knownService {
+		if md, ok := srv.md[info[1]]; ok {
+			ins, _, ok := r.pool.GenArgsForFunc(md)
+			if !ok {
+				return nil, errors.New("gen args failed")
+			}
+			err = dec(&ins)
+			if err != nil {
+				return
+			}
+			if interceptor == nil {
+				reply, err = _call(md, ins...)
+			} else {
+				info := &UnaryServerInfo{
+					Server:     srv,
+					FullMethod: method,
+				}
+				handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+					return _call(md, ins...)
+				}
+				reply, err = interceptor(ctx, ins, info, handler)
+			}
+		}
+	}
+	return
+}
+
+func (r *CustomServer) Call(method string, data []byte) (result interface{}, err error) {
 	info := strings.Split(method, ".")
 	if len(info) != 2 {
 		err = errors.New("invalid method string")

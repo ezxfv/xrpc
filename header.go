@@ -7,6 +7,7 @@ import (
 
 type payloadFormat uint8
 type HeaderCmd string
+type Rpc int
 
 const (
 	payloadLen = 1
@@ -24,11 +25,15 @@ const (
 	Upgrade HeaderCmd = "upgrade"
 
 	Preface = "xrpc/cheers"
+
+	XRPC   Rpc = 0
+	RawRPC Rpc = 1
 )
 
 type streamHeader struct {
 	FullMethod string
 	Cmd        HeaderCmd
+	RpcType    Rpc
 	Args       map[string]interface{}
 	Payload    []byte
 }

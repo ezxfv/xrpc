@@ -10,15 +10,12 @@ import (
 
 type Math struct{}
 
-type Human struct {
-	Age int
+func (m *Math) Add(a, b int) int {
+	return a + b
 }
 
-func (m *Math) Add(a, b *int, h Human) (*int, *int, *Human) {
-	c := *a + *b
-	d := 2 * c
-	h.Age += 20
-	return &c, &d, &h
+func (m *Math) Calc(a, b int) (int, float64) {
+	return a * b, float64(a) / float64(b)
 }
 
 func Sub(a, b int) int {
@@ -30,24 +27,22 @@ func Add(a, b int) int {
 }
 
 func TestCustomService_Call(t *testing.T) {
-	cs := xrpc.NewCustomService()
-	cs.RegisterService("math", &Math{})
+	cs := xrpc.NewCustomServer()
+	cs.RegisterCustomService("math", &Math{})
 	var (
 		a = 1
 		b = 2
-		h = Human{Age: 10}
 		c = 0
 		d = 0
 	)
-	args := []interface{}{&a, &b, &h}
+	args := []interface{}{a, b}
 	data, _ := jsoniter.Marshal(args)
 	res, _ := cs.Call("math.Add", data)
-	xrpc.Dispatch(res, &c, &d, &h)
-	println(c, d, h.Age)
+	xrpc.Dispatch(res, &c, &d)
 }
 
 func TestCustomService_RegisterFunction(t *testing.T) {
-	cs := xrpc.NewCustomService()
+	cs := xrpc.NewCustomServer()
 	cs.RegisterFunction("math", "Sub", Sub)
 	cs.RegisterFunction("math", "Add", Add)
 	var (
@@ -66,7 +61,7 @@ func TestCustomService_RegisterFunction(t *testing.T) {
 }
 
 func BenchmarkCustomService_RegisterFunction(b *testing.B) {
-	cs := xrpc.NewCustomService()
+	cs := xrpc.NewCustomServer()
 	cs.RegisterFunction("math", "Sub", Sub)
 	var (
 		a1 = 1
