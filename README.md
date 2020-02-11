@@ -77,12 +77,23 @@ func StartMathServer(protocol, addr string) {
 		log.Fatal(err)
 	}
 	s := xrpc.NewServer()
-	if enablePlugin {
-		promPlugin := prom.New()
-		logPlugin := logp.New()
-		tracePlugin := trace.New()
-		s.ApplyPlugins(promPlugin, logPlugin, tracePlugin)
-	}
+    if enablePlugin {
+        promPlugin := prom.New()
+        logPlugin := logp.New()
+        tracePlugin := trace.New()
+        whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
+        s.ApplyPlugins(promPlugin, logPlugin, tracePlugin, whitelistPlugin)
+        if enableCrypto {
+            cryptoPlugin := crypto.New()
+            cryptoPlugin.SetKey(sessionID, sessionKey)
+            s.ApplyPlugins(cryptoPlugin)
+        }
+        s.StartPlugins()
+    }
+    if enableAuth {
+        admin := xrpc.NewAdminAuthenticator(user, pass)
+        s.SetAuthenticator(admin)
+    }
 	math_pb.RegisterMathServer(s, &MathImpl{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -99,16 +110,27 @@ func RunMathClient() {
         log.Fatalf("did not connect: %v", err)
     }
     defer conn.Close()
-    client := pb.NewMathClient(conn)
 
-    r := client.Add(context.Background(), a, b)
+    cryptoPlugin := crypto.New()
+    cryptoPlugin.SetKey(sessionID, sessionKey)
+    conn.ApplyPlugins(cryptoPlugin)
+
+    // 设置auth和crypto参数
+    conn.SetHeaderArg("user", user)
+    conn.SetHeaderArg("pass", pass)
+    conn.SetHeaderArg(crypto.Key, sessionID)
+    
+    client := pb.NewMathClient(conn)
+    ctx := xrpc.SetCookie(context.Background(), crypto.Key, sessionID)
+
+    r := client.Add(ctx, a, b)
     assert.Equal(t, r, 5)
     log.Printf("3 + 2 = %d", r)
-    sum, avg := client.Calc(context.Background(), a, b)
+    sum, avg := client.Calc(ctx, a, b)
     assert.Equal(t, 5, sum)
     assert.Equal(t, 2.50, avg)
     log.Printf("sum = %d, avg = %.2f", sum, avg)
-    val, n := client.Inc(context.Background(), n)
+    val, n := client.Inc(ctx, n)
     assert.Equal(t, val, n.Val)
     assert.Equal(t, int32(20), val)
     log.Printf("new num: %d", n.Val)

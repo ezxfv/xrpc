@@ -224,7 +224,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 
 func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
 	log.Debug("process server stream")
-	log.Debug("close server stream")
+	defer log.Debug("close server stream")
 	service, method := header.splitMethod()
 	if service == "" || method == "" {
 		return
