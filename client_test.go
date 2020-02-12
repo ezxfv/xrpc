@@ -72,7 +72,7 @@ var (
 )
 
 func TestCustomClientTrace(t *testing.T) {
-	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+	client, err := xrpc.NewRawClient("tcp", serverAddr, xrpc.WithJsonCodec())
 	assert.Equal(t, nil, err)
 	client.Setup(setupConn)
 	var c int
@@ -83,7 +83,7 @@ func TestCustomClientTrace(t *testing.T) {
 }
 
 func TestCustomClient(t *testing.T) {
-	client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+	client, err := xrpc.NewRawClient("tcp", serverAddr, xrpc.WithJsonCodec())
 	assert.Equal(t, nil, err)
 	client.Setup(setupConn)
 
@@ -105,9 +105,18 @@ func TestCustomClient(t *testing.T) {
 	assert.Equal(t, 2.0, f)
 }
 
+func TestMathClientTrace(t *testing.T) {
+	if client == nil {
+		client = newMathClient("tcp", serverAddr)
+	}
+
+	r := client.XRpcDouble(ctx, 10)
+	assert.Equal(t, 20, r)
+}
+
 func TestMathClient(t *testing.T) {
 	if client == nil {
-		client = newMathClient("tcp", "localhost:9898")
+		client = newMathClient("tcp", serverAddr)
 	}
 
 	r := client.Add(ctx, a, b)
@@ -124,7 +133,7 @@ func TestMathClient(t *testing.T) {
 }
 
 func TestGreeterClient(t *testing.T) {
-	client := newGreeterClient("tcp", "localhost:9898")
+	client := newGreeterClient("tcp", serverAddr)
 	r, err := client.SayHello(context.Background(), &greeter_pb.HelloRequest{Name: name})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
@@ -133,8 +142,8 @@ func TestGreeterClient(t *testing.T) {
 }
 
 func TestMathAndGreeterClient(t *testing.T) {
-	mathClient := newMathClient("tcp", "localhost:9898")
-	greeterClient := newGreeterClient("tcp", "localhost:9898")
+	mathClient := newMathClient("tcp", serverAddr)
+	greeterClient := newGreeterClient("tcp", serverAddr)
 	c := mathClient.Add(ctx, 2, 3)
 	assert.Equal(t, 5, c)
 
@@ -145,7 +154,7 @@ func TestMathAndGreeterClient(t *testing.T) {
 
 func TestMathClient1K(t *testing.T) {
 	if client == nil {
-		client = newMathClient("tcp", "localhost:9898")
+		client = newMathClient("tcp", serverAddr)
 	}
 	now := time.Now()
 	N := 1000
@@ -159,7 +168,7 @@ func TestMathClient1K(t *testing.T) {
 
 func BenchmarkMathClientInc(tb *testing.B) {
 	if client == nil {
-		client = newMathClient("tcp", "localhost:9898")
+		client = newMathClient("tcp", serverAddr)
 	}
 	for i := 0; i < tb.N; i++ {
 		client.Inc(ctx, n)
@@ -168,7 +177,7 @@ func BenchmarkMathClientInc(tb *testing.B) {
 
 func BenchmarkMathClientAdd(tb *testing.B) {
 	if client == nil {
-		client = newMathClient("tcp", "localhost:9898")
+		client = newMathClient("tcp", serverAddr)
 	}
 	for i := 0; i < tb.N; i++ {
 		client.Add(ctx, a, b)
@@ -177,7 +186,7 @@ func BenchmarkMathClientAdd(tb *testing.B) {
 
 func BenchmarkMathClientCalc(tb *testing.B) {
 	if client == nil {
-		client = newMathClient("tcp", "localhost:9898")
+		client = newMathClient("tcp", serverAddr)
 	}
 	for i := 0; i < tb.N; i++ {
 		client.Calc(ctx, a, b)

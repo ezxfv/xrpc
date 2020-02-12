@@ -92,6 +92,9 @@ func genClientVars(method *Method) (string, string, string, string) {
 	k := 1
 	var ins, outs, starOuts []string
 	for i, pb := range method.Params {
+		if strings.Contains(pb.Type, "xrpc.XContext") {
+			continue
+		}
 		var ns []string
 		if len(pb.Names) != 0 {
 			for range pb.Names {
@@ -208,6 +211,7 @@ func genServerVars(method *Method, x *Generator) (string, string) {
 	var paramsNames []string
 	var var_args bool
 	var resultsNames []string
+	var hasCtx bool
 	if len(method.Params) > 0 {
 		ins_str := ""
 		x.P("var (")
@@ -215,8 +219,14 @@ func genServerVars(method *Method, x *Generator) (string, string) {
 		k := 1
 		for _, p := range method.Params {
 			var t string
+			var ctx bool
 			if strings.HasPrefix(p.Type, "*") {
-				t = "= new(" + p.Type[1:] + ")"
+				if strings.Contains(p.Type, "XContext") {
+					t = " = xrpc.XBackground()"
+					ctx = true
+				} else {
+					t = "= new(" + p.Type[1:] + ")"
+				}
 			} else if strings.HasPrefix(p.Type, "...") {
 				t = "[]" + p.Type[3:]
 				var_args = true
@@ -224,6 +234,13 @@ func genServerVars(method *Method, x *Generator) (string, string) {
 				t = p.Type
 			}
 			var in_name string
+			if ctx {
+				in_name = "xctx"
+				x.F("%s %s", in_name, t)
+				paramsNames = append(paramsNames, in_name)
+				hasCtx = true
+				continue
+			}
 			if len(p.Names) == 0 {
 				in_name = fmt.Sprintf("in_%d", k)
 				x.F("in_%d %s", k, t)
@@ -250,6 +267,9 @@ func genServerVars(method *Method, x *Generator) (string, string) {
 		}
 		x.UnTab()
 		x.P(")")
+		if hasCtx {
+			x.P("xctx.SetCtx(ctx)")
+		}
 		end := len(ins_str) - 2
 		x.F("ins = append(ins, %s)", ins_str[:end])
 	}
@@ -306,7 +326,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 		}
 		// Server registration.
 		x.P("func Register", servName, "Server(s *xrpc.Server, srv ", servName, ") {")
-		x.P("s.RegisterCustomService(&", serviceDescVar, `, srv)`)
+		x.P("s.RegisterService(&", serviceDescVar, `, srv)`)
 		x.P("}")
 		x.P()
 

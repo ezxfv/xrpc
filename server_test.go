@@ -20,6 +20,10 @@ import (
 	math_pb "github.com/edenzhong7/xrpc/protocol/math"
 )
 
+const (
+	serverAddr = "localhost:9898"
+)
+
 var (
 	enablePlugin = true
 	enableAuth   = true
@@ -29,6 +33,38 @@ var (
 
 type MathImpl struct {
 	math_pb.UnimplementedMath
+}
+
+func (m *MathImpl) XRpcDouble(c *xrpc.XContext, a int) int {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	conn, err := xrpc.Dial("tcp", serverAddr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+
+	setupConn(conn)
+	client := math_pb.NewMathClient(conn)
+
+	client.Double(c.Context(), a)
+	return client.XRpcAdd(c.Context(), a, a)
+}
+
+func (m *MathImpl) XRpcAdd(c *xrpc.XContext, a, b int) int {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	conn, err := xrpc.Dial("tcp", serverAddr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+
+	setupConn(conn)
+	client := math_pb.NewMathClient(conn)
+
+	return client.Add(c.Context(), a, b)
+}
+
+func (m *MathImpl) Double(a int) int {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	return a * 2
 }
 
 func (m *MathImpl) Inc(n *math_pb.Num) (int32, *math_pb.Num) {
@@ -92,7 +128,7 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 }
 
 func TestCustomServer(t *testing.T) {
-	lis, s := newServer("tcp", "localhost:9898")
+	lis, s := newServer("tcp", serverAddr)
 	s.RegisterCustomService("math", &Math{})
 	s.RegisterFunction("default", "Double", func(a int) int {
 		return a * 2
@@ -101,7 +137,7 @@ func TestCustomServer(t *testing.T) {
 		return a + b
 	})
 	s.RegisterFunction("default", "RpcDouble", func(c *xrpc.XContext, a int) int {
-		client, err := xrpc.NewRawClient("tcp", "localhost:9898", xrpc.WithJsonCodec())
+		client, err := xrpc.NewRawClient("tcp", serverAddr, xrpc.WithJsonCodec())
 		if err != nil {
 			return 0
 		}
@@ -119,7 +155,7 @@ func TestCustomServer(t *testing.T) {
 }
 
 func TestMathServer(t *testing.T) {
-	lis, s := newServer("tcp", "localhost:9898")
+	lis, s := newServer("tcp", serverAddr)
 	math_pb.RegisterMathServer(s, &MathImpl{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -128,7 +164,7 @@ func TestMathServer(t *testing.T) {
 }
 
 func TestGreeterServer(t *testing.T) {
-	lis, s := newServer("tcp", "localhost:9898")
+	lis, s := newServer("tcp", serverAddr)
 	greeter_pb.RegisterGreeterServer(s, &GreeterImpl{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -137,7 +173,7 @@ func TestGreeterServer(t *testing.T) {
 }
 
 func TestMathAndGreeterServer(t *testing.T) {
-	lis, s := newServer("tcp", "localhost:9898")
+	lis, s := newServer("tcp", serverAddr)
 	math_pb.RegisterMathServer(s, &MathImpl{})
 	greeter_pb.RegisterGreeterServer(s, &GreeterImpl{})
 	if err := s.Serve(lis); err != nil {

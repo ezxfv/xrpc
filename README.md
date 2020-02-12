@@ -23,24 +23,13 @@ A Simple RPC Framework
 ```go
 package math
 
-type Num struct {
-	Val int32
-	S   Step
-}
-
-type Step struct {
-	S int32
-}
-
-type Counter interface {
-	Inc(n *Num) (int32, *Num)
-	Dec(n Num) *Num
-}
+import "github.com/edenzhong7/xrpc"
 
 type Math interface {
-	Counter
+	XRpcAdd(ctx *xrpc.XContext, a, b int) int
+	XRpcDouble(ctx *xrpc.XContext, a int) int
 	Add(a, b int) int
-	Calc(ints ...int) (int, float64)
+	Double(a int) int
 }
 ```
 
@@ -50,24 +39,41 @@ type MathImpl struct {
 	math_pb.UnimplementedMath
 }
 
-func (m *MathImpl) Inc(n *math_pb.Num) (int32, *math_pb.Num) {
+func (m *MathImpl) XRpcDouble(c *xrpc.XContext, a int) int {
 	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-	n.Val += n.S.S
-	return n.Val, n
+	conn, err := xrpc.Dial("tcp", serverAddr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+
+	setupConn(conn)
+	client := math_pb.NewMathClient(conn)
+
+	client.Double(c.Context(), a)
+	return client.XRpcAdd(c.Context(), a, a)
+}
+
+func (m *MathImpl) XRpcAdd(c *xrpc.XContext, a, b int) int {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	conn, err := xrpc.Dial("tcp", serverAddr, xrpc.WithInsecure(), xrpc.WithJsonCodec())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+
+	setupConn(conn)
+	client := math_pb.NewMathClient(conn)
+
+	return client.Add(c.Context(), a, b)
+}
+
+func (m *MathImpl) Double(a int) int {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	return a * 2
 }
 
 func (m *MathImpl) Add(a, b int) int {
 	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 	return a + b
-}
-
-func (m *MathImpl) Calc(ns ...int) (int, float64) {
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
-	var sum int
-	for _, i := range ns {
-		sum += i
-	}
-	return sum, float64(sum) / float64(len(ns))
 }
 ```
 
@@ -80,22 +86,25 @@ func StartMathServer(protocol, addr string) {
 	}
 	s := xrpc.NewServer()
     if enablePlugin {
-        promPlugin := prom.New()
-        logPlugin := logp.New()
-        tracePlugin := trace.New()
-        whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
-        s.ApplyPlugins(promPlugin, logPlugin, tracePlugin, whitelistPlugin)
-        if enableCrypto {
-            cryptoPlugin := crypto.New()
-            cryptoPlugin.SetKey(sessionID, sessionKey)
-            s.ApplyPlugins(cryptoPlugin)
-        }
-        s.StartPlugins()
-    }
-    if enableAuth {
-        admin := xrpc.NewAdminAuthenticator(user, pass)
-        s.SetAuthenticator(admin)
-    }
+   		promPlugin := prom.New()
+   		//logPlugin := logp.New()
+   		tracePlugin := trace.New()
+   		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
+   		s.ApplyPlugins(promPlugin, tracePlugin, whitelistPlugin)
+   		if enableCrypto {
+   			cryptoPlugin := crypto.New()
+   			cryptoPlugin.SetKey(sessionID, sessionKey)
+   			s.ApplyPlugins(cryptoPlugin)
+   		}
+   		s.StartPlugins()
+   	}
+   	if enableAuth {
+   		admin := xrpc.NewAdminAuthenticator(user, pass)
+   		s.SetAuthenticator(admin)
+   	}
+   	if enableAPI {
+   		go api.Server(":8080")
+   	}
 	math_pb.RegisterMathServer(s, &MathImpl{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -125,19 +134,20 @@ func RunMathClient() {
     client := pb.NewMathClient(conn)
     ctx :=context.Background()
 
-    r := client.Add(ctx, a, b)
+    r := client.Add(ctx, 2, 3)
     assert.Equal(t, r, 5)
-    log.Printf("3 + 2 = %d", r)
-    sum, avg := client.Calc(ctx, a, b)
-    assert.Equal(t, 5, sum)
-    assert.Equal(t, 2.50, avg)
-    log.Printf("sum = %d, avg = %.2f", sum, avg)
-    val, n := client.Inc(ctx, n)
-    assert.Equal(t, val, n.Val)
-    assert.Equal(t, int32(20), val)
-    log.Printf("new num: %d", n.Val)
+    
+    if client == nil {
+		client = newMathClient("tcp", serverAddr)
+	}
+
+	r := client.XRpcDouble(ctx, 10)
+	assert.Equal(t, 20, r)    
 }
 ```
+
+XRpcDouble中新建client调用了实际的Double计算，测试多级rpc调用时trace能正确记录
+![avatar](./screenshots/trace.png)
 
 ### 直接调用服务
 #### CustomServer
@@ -197,5 +207,3 @@ func TestCustomClientTrace(t *testing.T) {
 	assert.Equal(t, 20, c)
 }
 ```
-
-RpcDouble中新建client调用了实际的Double计算，测试多级rpc调用时trace能正确记录
