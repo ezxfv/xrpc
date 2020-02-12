@@ -27,7 +27,7 @@ func Add(a, b int) int {
 }
 
 func TestCustomService_Call(t *testing.T) {
-	cs := xrpc.NewCustomServer()
+	cs := xrpc.NewCustomServer(nil)
 	cs.RegisterCustomService("math", &Math{})
 	var (
 		a = 1
@@ -42,7 +42,7 @@ func TestCustomService_Call(t *testing.T) {
 }
 
 func TestCustomService_RegisterFunction(t *testing.T) {
-	cs := xrpc.NewCustomServer()
+	cs := xrpc.NewCustomServer(nil)
 	cs.RegisterFunction("math", "Sub", Sub)
 	cs.RegisterFunction("math", "Add", Add)
 	var (
@@ -61,7 +61,7 @@ func TestCustomService_RegisterFunction(t *testing.T) {
 }
 
 func BenchmarkCustomService_RegisterFunction(b *testing.B) {
-	cs := xrpc.NewCustomServer()
+	cs := xrpc.NewCustomServer(nil)
 	cs.RegisterFunction("math", "Sub", Sub)
 	var (
 		a1 = 1

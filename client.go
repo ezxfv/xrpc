@@ -12,6 +12,7 @@ import (
 	"github.com/xtaci/smux"
 	"x.io/xrpc/pkg/encoding"
 	"x.io/xrpc/pkg/net"
+	_ "x.io/xrpc/plugin/chord"
 )
 
 type ClientConn struct {
@@ -30,7 +31,13 @@ type CallOption struct {
 
 func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn, err error) {
 	conn, err := net.Dial(context.Background(), network, addr)
+	if err != nil {
+		return
+	}
 	session, err := smux.Client(conn, nil)
+	if err != nil {
+		return
+	}
 	n, err := conn.Write([]byte(Preface))
 	if err != nil {
 		return

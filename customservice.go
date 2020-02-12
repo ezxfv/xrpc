@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"x.io/xrpc/plugin"
+
 	"x.io/xrpc/pkg/encoding"
 	_ "x.io/xrpc/pkg/encoding/json"
 )
@@ -65,16 +67,18 @@ func Call(f reflect.Value, params ...interface{}) (out []interface{}, err error)
 
 type customService struct {
 	name string
+	desc *ServiceDesc
 	ss   interface{}
 	md   map[string]reflect.Value
 }
 
-func NewCustomServer() *CustomServer {
+func NewCustomServer(pc plugin.Container) *CustomServer {
 	return &CustomServer{
 		pool:  &argsPool{pools: &sync.Pool{}},
 		m:     map[string]*customService{},
 		codec: encoding.GetCodec("json"),
 		mu:    &sync.Mutex{},
+		pc:    pc,
 	}
 }
 
@@ -83,9 +87,11 @@ type CustomServer struct {
 	m     map[string]*customService
 	codec encoding.Codec
 	mu    *sync.Mutex
+
+	pc plugin.Container
 }
 
-func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{}) (err error) {
+func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{}, metadata ...string) (err error) {
 	sv := reflect.ValueOf(ss)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -93,20 +99,33 @@ func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{})
 		log.Fatalf("Server.RegisterCustomService found duplicate service registration for %q", serviceName)
 	}
 	serviceName = customPrefix + "." + serviceName
+	desc := &ServiceDesc{
+		ServiceName: serviceName,
+		Metadata:    metadata,
+	}
 	srv := &customService{
 		name: serviceName,
+		desc: desc,
 		ss:   ss,
 		md:   make(map[string]reflect.Value),
 	}
 	for i := 0; i < sv.Type().NumMethod(); i++ {
 		method := sv.Type().Method(i)
 		srv.md[method.Name] = sv.Method(i)
+		desc.Methods = append(desc.Methods, MethodDesc{MethodName: method.Name})
 	}
 	r.m[serviceName] = srv
+	md := ""
+	if len(metadata) > 0 {
+		md = metadata[0]
+	}
+	if r.pc != nil {
+		err = r.pc.DoRegisterCustomService(desc, srv, md)
+	}
 	return
 }
 
-func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn interface{}) {
+func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn interface{}, metadata ...string) (err error) {
 	serviceName = customPrefix + "." + serviceName
 	if _, ok := r.m[serviceName]; !ok {
 		r.m[serviceName] = &customService{
@@ -116,6 +135,14 @@ func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn int
 		}
 	}
 	r.m[serviceName].md[fname] = reflect.ValueOf(fn)
+	md := ""
+	if len(metadata) > 0 {
+		md = metadata[0]
+	}
+	if r.pc != nil {
+		err = r.pc.DoRegisterFunction(serviceName, fname, fn, md)
+	}
+	return
 }
 
 func (r *CustomServer) RpcCall(ctx context.Context, service, method string, dec func(interface{}) error, interceptor UnaryServerInterceptor) (reply interface{}, err error) {

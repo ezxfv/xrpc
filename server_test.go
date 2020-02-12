@@ -2,10 +2,13 @@ package xrpc_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"testing"
 	"time"
+
+	"x.io/xrpc/plugin/chord"
 
 	"x.io/xrpc/api"
 
@@ -29,6 +32,7 @@ var (
 	enableAuth   = true
 	enableCrypto = true
 	enableAPI    = true
+	enableChord  = true
 )
 
 type MathImpl struct {
@@ -114,6 +118,10 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 			cryptoPlugin := crypto.New()
 			cryptoPlugin.SetKey(sessionID, sessionKey)
 			s.ApplyPlugins(cryptoPlugin)
+		}
+		if enableChord {
+			chordPlugin := chord.New(fmt.Sprintf("%s://%s", protocol, addr), "http://localhost:9900/chord")
+			s.ApplyPlugins(chordPlugin)
 		}
 		s.StartPlugins()
 	}

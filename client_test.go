@@ -132,6 +132,15 @@ func TestMathClient(t *testing.T) {
 	log.Printf("new num: %d", n.Val)
 }
 
+func TestChordMathClient(t *testing.T) {
+	N := 3
+	for i := 0; i < N; i++ {
+		client := newMathClient("chord", "math.Math")
+		r := client.XRpcDouble(ctx, 10)
+		assert.Equal(t, 20, r)
+	}
+}
+
 func TestGreeterClient(t *testing.T) {
 	client := newGreeterClient("tcp", serverAddr)
 	r, err := client.SayHello(context.Background(), &greeter_pb.HelloRequest{Name: name})

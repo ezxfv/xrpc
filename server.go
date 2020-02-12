@@ -24,7 +24,7 @@ type (
 func NewServer() *Server {
 	pc := plugin.NewPluginContainer()
 	s := &Server{
-		CustomServer: NewCustomServer(),
+		CustomServer: NewCustomServer(pc),
 		m:            map[string]*service{},
 		mu:           &sync.Mutex{},
 		lis:          map[net.Listener]bool{},
