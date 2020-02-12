@@ -1,6 +1,6 @@
 package math
 
-import "github.com/edenzhong7/xrpc"
+import "x.io/xrpc"
 
 type Num struct {
 	Val int32

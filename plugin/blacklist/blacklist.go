@@ -1,7 +1,7 @@
 package blacklist
 
 import (
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc/pkg/net"
 )
 
 func New(blacklist map[string]bool, mask []*net.IPNet) *blacklistPlugin {

@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/edenzhong7/xrpc/pkg/encoding"
+	"x.io/xrpc/pkg/encoding"
 
 	"github.com/golang/snappy"
 )

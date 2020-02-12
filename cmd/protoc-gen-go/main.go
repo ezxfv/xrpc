@@ -7,7 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/generator"
 
-	_ "github.com/edenzhong7/xrpc/pkg/generator"
+	_ "x.io/xrpc/pkg/generator"
 )
 
 func main() {

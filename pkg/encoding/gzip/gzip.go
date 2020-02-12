@@ -28,7 +28,7 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/edenzhong7/xrpc/pkg/encoding"
+	"x.io/xrpc/pkg/encoding"
 )
 
 // name is the name registered for the gzip compressor.

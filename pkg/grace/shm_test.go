@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/grace"
 	"github.com/stretchr/testify/assert"
+	"x.io/xrpc/pkg/grace"
 )
 
 const (

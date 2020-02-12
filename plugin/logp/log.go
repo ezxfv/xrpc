@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/edenzhong7/xrpc/pkg/log"
-	"github.com/edenzhong7/xrpc/pkg/net"
-	"github.com/edenzhong7/xrpc/plugin"
+	"x.io/xrpc/pkg/log"
+	"x.io/xrpc/pkg/net"
+	"x.io/xrpc/plugin"
 
 	echo "github.com/labstack/echo/v4"
 	"google.golang.org/grpc"

@@ -160,7 +160,7 @@ func (b *xrpcStubBuilder) ClientStub(meta *MetaData, x *Generator) error {
 		fullServName := fmt.Sprintf("%s.%s", meta.Name(), servName)
 		x.P(fmt.Sprintf(`// %sClient is the client API for %s service.
 //
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/github.com/edenzhong7/xrpc#ClientConn.NewStream.`, servName, servName))
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.`, servName, servName))
 		x.P("type ", servName, "Client interface {")
 		for _, method := range service.AllMethods() {
 			//method.Params = append(method.Params, &ArgBlock{

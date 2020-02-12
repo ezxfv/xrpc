@@ -9,8 +9,8 @@ import (
 
 	"context"
 
-	"github.com/edenzhong7/xrpc/api"
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc/api"
+	"x.io/xrpc/pkg/net"
 
 	echo "github.com/labstack/echo/v4"
 	"google.golang.org/grpc"

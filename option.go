@@ -3,7 +3,7 @@ package xrpc
 import (
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc/pkg/net"
 )
 
 type options struct {

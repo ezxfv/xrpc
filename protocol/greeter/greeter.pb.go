@@ -6,11 +6,12 @@ package greeter
 import (
 	context "context"
 	fmt "fmt"
-	xrpc "github.com/edenzhong7/xrpc"
-	codes "github.com/edenzhong7/xrpc/pkg/codes"
-	status "github.com/edenzhong7/xrpc/pkg/status"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
+	xrpc "x.io/xrpc"
+	codes "x.io/xrpc/pkg/codes"
+	status "x.io/xrpc/pkg/status"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -135,7 +136,7 @@ const _ = xrpc.SupportPackageIsVersion4
 
 // GreeterClient is the client API for Greeter service.
 //
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/github.com/edenzhong7/xrpc#ClientConn.NewStream.
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
 type GreeterClient interface {
 	// Sends a greeting
 	SayHello(ctx context.Context, in *HelloRequest, opts ...xrpc.CallOption) (*HelloReply, error)

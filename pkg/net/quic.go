@@ -12,7 +12,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/algs"
+	"x.io/xrpc/pkg/algs"
 
 	quic "github.com/lucas-clemente/quic-go"
 )

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/edenzhong7/xrpc"
+	"x.io/xrpc"
 
-	"github.com/edenzhong7/xrpc/pkg/crypto"
+	"x.io/xrpc/pkg/crypto"
 )
 
 const (

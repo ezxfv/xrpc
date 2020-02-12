@@ -3,7 +3,7 @@ package ratelimit
 import (
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc/pkg/net"
 
 	"github.com/juju/ratelimit"
 )

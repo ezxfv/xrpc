@@ -1,6 +1,6 @@
 package whitelist
 
-import "github.com/edenzhong7/xrpc/pkg/net"
+import "x.io/xrpc/pkg/net"
 
 func New(whitelist map[string]bool, mask []*net.IPNet) *whitelistPlugin {
 	if whitelist == nil {

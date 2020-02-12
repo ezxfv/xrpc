@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc/pkg/net"
 
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"

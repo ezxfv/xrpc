@@ -21,7 +21,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/edenzhong7/xrpc/pkg/crypto/edwards25519"
+	"x.io/xrpc/pkg/crypto/edwards25519"
 )
 
 const (

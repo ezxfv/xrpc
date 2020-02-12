@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/edenzhong7/xrpc/plugin"
+	"x.io/xrpc/plugin"
 
-	"github.com/edenzhong7/xrpc/pkg/encoding"
-	"github.com/edenzhong7/xrpc/pkg/net"
 	"github.com/xtaci/smux"
+	"x.io/xrpc/pkg/encoding"
+	"x.io/xrpc/pkg/net"
 )
 
 type ClientConn struct {

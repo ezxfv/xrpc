@@ -23,7 +23,7 @@ A Simple RPC Framework
 ```go
 package math
 
-import "github.com/edenzhong7/xrpc"
+import "x.io/xrpc"
 
 type Math interface {
 	XRpcAdd(ctx *xrpc.XContext, a, b int) int

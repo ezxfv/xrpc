@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/log"
+	"x.io/xrpc/pkg/log"
 
 	ws "github.com/gorilla/websocket"
 )

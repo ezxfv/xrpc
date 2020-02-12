@@ -3,7 +3,7 @@ package xrpc_test
 import (
 	"testing"
 
-	"github.com/edenzhong7/xrpc"
+	"x.io/xrpc"
 
 	jsoniter "github.com/json-iterator/go"
 )

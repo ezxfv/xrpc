@@ -53,9 +53,9 @@ const generatedCodeVersion = 4
 // relative to the import_prefix of the generator.Generator.
 const (
 	contextPkgPath = "context"
-	xrpcPkgPath    = "github.com/edenzhong7/xrpc"
-	statusPkgPath  = "github.com/edenzhong7/xrpc/pkg/status"
-	codesPkgPath   = "github.com/edenzhong7/xrpc/pkg/codes"
+	xrpcPkgPath    = "x.io/xrpc"
+	statusPkgPath  = "x.io/xrpc/pkg/status"
+	codesPkgPath   = "x.io/xrpc/pkg/codes"
 )
 
 func init() {
@@ -154,7 +154,7 @@ func (x *xrpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 	x.P()
 	x.P(fmt.Sprintf(`// %sClient is the client API for %s service.
 //
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/github.com/edenzhong7/xrpc#ClientConn.NewStream.`, servName, servName))
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.`, servName, servName))
 
 	// Client interface.
 	if deprecated {

@@ -9,9 +9,9 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/edenzhong7/xrpc/pkg/encoding"
-	"github.com/edenzhong7/xrpc/pkg/net"
-	"github.com/edenzhong7/xrpc/plugin"
+	"x.io/xrpc/pkg/encoding"
+	"x.io/xrpc/pkg/net"
+	"x.io/xrpc/plugin"
 
 	"github.com/xtaci/smux"
 	"google.golang.org/grpc/metadata"

@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/edenzhong7/xrpc/pkg/codes"
-	"github.com/edenzhong7/xrpc/plugin"
+	"x.io/xrpc/pkg/codes"
+	"x.io/xrpc/plugin"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

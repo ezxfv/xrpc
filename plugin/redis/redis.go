@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/pkg/log"
-	"github.com/edenzhong7/xrpc/pkg/net"
+	"x.io/xrpc"
+	"x.io/xrpc/pkg/log"
+	"x.io/xrpc/pkg/net"
 
 	"github.com/abronan/valkeyrie"
 	"github.com/abronan/valkeyrie/store"

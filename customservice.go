@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/edenzhong7/xrpc/pkg/encoding"
-	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
+	"x.io/xrpc/pkg/encoding"
+	_ "x.io/xrpc/pkg/encoding/json"
 )
 
 const (

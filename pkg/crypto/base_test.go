@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/edenzhong7/xrpc/pkg/crypto/edwards25519"
+	"x.io/xrpc/pkg/crypto/edwards25519"
 )
 
 type zeroReader struct{}

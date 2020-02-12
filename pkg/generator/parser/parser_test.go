@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/edenzhong7/xrpc/pkg/generator/parser"
+	"x.io/xrpc/pkg/generator/parser"
 )
 
 func TestParserMath(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/edenzhong7/xrpc
+module x.io/xrpc
 
 go 1.13
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/edenzhong7/xrpc/pkg/crypto"
+	"x.io/xrpc/pkg/crypto"
 )
 
 func TestAesEncryptor(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/pkg/codes"
+	"x.io/xrpc"
+	"x.io/xrpc/pkg/codes"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"

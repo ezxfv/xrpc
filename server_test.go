@@ -7,17 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edenzhong7/xrpc/api"
+	"x.io/xrpc/api"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/pkg/net"
-	"github.com/edenzhong7/xrpc/plugin/crypto"
-	"github.com/edenzhong7/xrpc/plugin/prom"
-	"github.com/edenzhong7/xrpc/plugin/trace"
-	"github.com/edenzhong7/xrpc/plugin/whitelist"
+	"x.io/xrpc"
+	"x.io/xrpc/pkg/net"
+	"x.io/xrpc/plugin/crypto"
+	"x.io/xrpc/plugin/prom"
+	"x.io/xrpc/plugin/trace"
+	"x.io/xrpc/plugin/whitelist"
 
-	greeter_pb "github.com/edenzhong7/xrpc/protocol/greeter"
-	math_pb "github.com/edenzhong7/xrpc/protocol/math"
+	greeter_pb "x.io/xrpc/protocol/greeter"
+	math_pb "x.io/xrpc/protocol/math"
 )
 
 const (

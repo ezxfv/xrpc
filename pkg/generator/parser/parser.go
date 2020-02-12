@@ -103,12 +103,12 @@ func (meta *MetaData) Print(b StubBuilder, w io.Writer) error {
 	meta.AddStubPkg("context")
 	meta.AddPkg(&Pkg{
 		Alias: "",
-		Path:  "github.com/edenzhong7/xrpc",
+		Path:  "x.io/xrpc",
 	})
 	meta.AddStubPkg("xrpc")
 	meta.AddPkg(&Pkg{
 		Alias: "",
-		Path:  "github.com/edenzhong7/xrpc/pkg/codes",
+		Path:  "x.io/xrpc/pkg/codes",
 	})
 	meta.AddStubPkg("codes")
 	b.ClientStub(meta, gen)

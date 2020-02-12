@@ -8,8 +8,8 @@ import (
 
 	"context"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/plugin/trace"
+	"x.io/xrpc"
+	"x.io/xrpc/plugin/trace"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edenzhong7/xrpc/pkg/common"
 	"github.com/stretchr/testify/assert"
+	"x.io/xrpc/pkg/common"
 )
 
 var n int32 = 0

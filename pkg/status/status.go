@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/edenzhong7/xrpc/pkg/codes"
+	"x.io/xrpc/pkg/codes"
 )
 
 func Error(c codes.Code, err string) error {

@@ -1,7 +1,7 @@
 package json
 
 import (
-	"github.com/edenzhong7/xrpc/pkg/encoding"
+	"x.io/xrpc/pkg/encoding"
 
 	jsoniter "github.com/json-iterator/go"
 )

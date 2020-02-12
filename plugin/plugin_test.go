@@ -7,10 +7,10 @@ import (
 
 	"context"
 
-	"github.com/edenzhong7/xrpc"
-	"github.com/edenzhong7/xrpc/plugin"
-	"github.com/edenzhong7/xrpc/plugin/logp"
-	"github.com/edenzhong7/xrpc/plugin/prom"
+	"x.io/xrpc"
+	"x.io/xrpc/plugin"
+	"x.io/xrpc/plugin/logp"
+	"x.io/xrpc/plugin/prom"
 )
 
 func TestLogPlugin(t *testing.T) {

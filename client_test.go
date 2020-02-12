@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/edenzhong7/xrpc"
-	_ "github.com/edenzhong7/xrpc/pkg/encoding/gzip"
-	_ "github.com/edenzhong7/xrpc/pkg/encoding/json"
-	_ "github.com/edenzhong7/xrpc/pkg/encoding/proto"
-	_ "github.com/edenzhong7/xrpc/pkg/encoding/snappy"
-	"github.com/edenzhong7/xrpc/plugin/crypto"
+	"x.io/xrpc"
+	_ "x.io/xrpc/pkg/encoding/gzip"
+	_ "x.io/xrpc/pkg/encoding/json"
+	_ "x.io/xrpc/pkg/encoding/proto"
+	_ "x.io/xrpc/pkg/encoding/snappy"
+	"x.io/xrpc/plugin/crypto"
 
-	greeter_pb "github.com/edenzhong7/xrpc/protocol/greeter"
-	pb "github.com/edenzhong7/xrpc/protocol/math"
 	"github.com/stretchr/testify/assert"
+	greeter_pb "x.io/xrpc/protocol/greeter"
+	pb "x.io/xrpc/protocol/math"
 )
 
 var (
