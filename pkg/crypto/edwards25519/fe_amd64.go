@@ -196,7 +196,7 @@ func feReduce(t, v *FieldElement) {
 
 	// We now have a field element t < 2^255, but need t <= 2^255-19
 
-	// Get the carry bit
+	// get the carry bit
 	c := (t[0] + 19) >> 51
 	c = (t[1] + c) >> 51
 	c = (t[2] + c) >> 51

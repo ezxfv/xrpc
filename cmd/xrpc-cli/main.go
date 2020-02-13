@@ -40,7 +40,7 @@ func main() {
 		data := make([]byte, 5)
 		n, err := conn.Read(data)
 		if err == nil && n == 5 {
-			println("Get:", string(data))
+			println("get:", string(data))
 			break
 		}
 	}

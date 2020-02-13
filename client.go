@@ -191,6 +191,14 @@ func (cc *ClientConn) Close() (err error) {
 	return
 }
 
+func (cc *ClientConn) Network() string {
+	return cc.conn.RemoteAddr().Network()
+}
+
+func (cc *ClientConn) Addr() string {
+	return cc.conn.RemoteAddr().String()
+}
+
 func invoke(ctx context.Context, method string, req, reply interface{}, cc *ClientConn, opts ...CallOption) (err error) {
 	cs, err := cc.NewStream(ctx, XRPC, nil, method, opts...)
 	if err != nil {

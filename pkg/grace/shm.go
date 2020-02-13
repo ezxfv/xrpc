@@ -18,8 +18,8 @@ const (
 
 	// Control commands for `msgctl', `semctl', and `shmctl'.
 	IPC_RMID = 0 // Remove identifier.
-	IPC_SET  = 1 // Set `ipc_perm' options.
-	IPC_STAT = 2 // Get `ipc_perm' options.
+	IPC_SET  = 1 // set `ipc_perm' options.
+	IPC_STAT = 2 // get `ipc_perm' options.
 	IPC_INFO = 3 // See ipcs.
 
 	// Special key values.

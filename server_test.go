@@ -8,12 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"x.io/xrpc/plugin/chord"
-
-	"x.io/xrpc/api"
-
 	"x.io/xrpc"
+	"x.io/xrpc/api"
 	"x.io/xrpc/pkg/net"
+	"x.io/xrpc/plugin/chord"
 	"x.io/xrpc/plugin/crypto"
 	"x.io/xrpc/plugin/prom"
 	"x.io/xrpc/plugin/trace"

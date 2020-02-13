@@ -252,7 +252,7 @@ func (c *Config) LoadEnv(keys []string) {
 	return
 }
 
-// Get search level flag>config>env
+// get search level flag>config>env
 func (c *Config) Get(path string) (v *Element, ok bool) {
 	if v, ok = c.flagKV[path]; ok {
 		return

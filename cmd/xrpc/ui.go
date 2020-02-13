@@ -1,1 +1,1 @@
-package xrpc
+package main

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	echo "github.com/labstack/echo/v4"
 	"x.io/xrpc/pkg/net"
 
+	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
@@ -14,7 +14,13 @@ const (
 	DefaultAddr = "localhost:9900"
 )
 
-func newMockChord() *mockChord {
+type HttpAPI interface {
+	set(key, value string)
+	get(key string) string
+	del(key string)
+}
+
+func NewMockChord() *mockChord {
 	return &mockChord{
 		kvs: map[string]string{},
 	}
@@ -24,15 +30,15 @@ type mockChord struct {
 	kvs map[string]string
 }
 
-func (m *mockChord) Set(key, value string) {
+func (m *mockChord) set(key, value string) {
 	m.kvs[key] = value
 }
 
-func (m *mockChord) Get(key string) (value string) {
+func (m *mockChord) get(key string) string {
 	return m.kvs[key]
 }
 
-func (m *mockChord) Del(key string) {
+func (m *mockChord) del(key string) {
 	delete(m.kvs, key)
 }
 
@@ -41,15 +47,12 @@ func (m *mockChord) dump(prefix string) {
 	println(prefix + ": " + string(d))
 }
 
-func Server(addr string) error {
+func Server(addr string, mc HttpAPI) error {
 	e := echo.New()
-	// Middleware
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	mc := newMockChord()
-
-	// Routes
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "chord http api")
 	})
@@ -61,19 +64,16 @@ func Server(addr string) error {
 		if err != nil {
 			return err
 		}
-		mc.Set(m["key"], m["value"])
-		mc.dump("set")
+		mc.set(m["key"], m["value"])
 		return c.String(http.StatusOK, "")
 	})
 	g.GET("/get", func(c echo.Context) error {
 		key := c.FormValue("key")
-		mc.dump("get")
-		return c.String(http.StatusOK, mc.Get(key))
+		return c.String(http.StatusOK, mc.get(key))
 	})
 	g.DELETE("/del", func(c echo.Context) error {
 		key := c.FormValue("key")
-		mc.Del(key)
-		mc.dump("del")
+		mc.del(key)
 		return c.String(http.StatusOK, "")
 	})
 
