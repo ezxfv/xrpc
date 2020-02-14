@@ -5,12 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"x.io/xrpc"
+	"x.io/xrpc/pkg/crypto"
+	_ "x.io/xrpc/pkg/encoding/gzip"
+	_ "x.io/xrpc/pkg/encoding/json"
+	_ "x.io/xrpc/pkg/encoding/proto"
+	_ "x.io/xrpc/pkg/encoding/snappy"
+	"x.io/xrpc/pkg/log"
+	cryptop "x.io/xrpc/plugin/crypto"
+
 	"x.io/xrpc/protocol/chordpb"
 )
 
@@ -119,6 +126,10 @@ func (c *chordImpl) Join(ctx *xrpc.XContext, req *chordpb.Message) (reply *chord
 	}
 
 	if c.predecessor == nil || (c.predecessor.Id.Less(senderID) && senderID.Less(c.id)) {
+		if c.successor == nil || c.successor.Id == c.id {
+			c.successor = &(req.Sender)
+			c.notify()
+		}
 		return
 	}
 
@@ -186,7 +197,16 @@ func (c *chordImpl) Lookup(ctx *xrpc.XContext, req *chordpb.Message) (reply *cho
 	}
 	if finger.Id == c.id {
 		var err error
-		reply.Body, err = c.store.Get(req.Key)
+		if req.Purpose == chordpb.PredReq {
+			p := c.predecessor
+			if p == nil {
+				p = c.self
+			}
+			data, err := json.Marshal(p)
+			if err == nil {
+				req.Body = data
+			}
+		}
 		if err != nil {
 			reply.Purpose = chordpb.StatusError
 			reply.Errors = append(reply.Errors, c.wrapErr(err.Error()))
@@ -255,11 +275,9 @@ func (c *chordImpl) Notify(ctx *xrpc.XContext, req *chordpb.Message) (reply *cho
 	}
 	if finger.Id == c.id {
 		sender := req.Sender
-		if c.predecessor == nil {
+		if c.predecessor == nil || (c.predecessor.Id.Less(sender.Id) && sender.Id.Less(c.id)) {
 			c.predecessor = &sender
-		}
-		if c.predecessor != nil && c.predecessor.Id.Less(sender.Id) && sender.Id.Less(c.id) {
-			c.predecessor = &sender
+			log.Debug("set predecessor to: ", sender.String())
 		}
 		return
 	}
@@ -312,6 +330,7 @@ func (c *chordImpl) Set(ctx *xrpc.XContext, req *chordpb.Message) (reply *chordp
 	}
 	if finger.Id == c.id {
 		var err error
+		fmt.Printf("set %s:%s\n", string(req.Key), string(req.Body))
 		err = c.store.Set(req.Key, req.Body)
 		if err != nil {
 			reply.Purpose = chordpb.StatusError
@@ -344,10 +363,13 @@ func (c *chordImpl) Get(ctx *xrpc.XContext, req *chordpb.Message) (reply *chordp
 	if finger.Id == c.id {
 		var err error
 		reply.Body, err = c.store.Get(req.Key)
+		println("req key:", string(req.Key))
 		if err != nil {
 			reply.Purpose = chordpb.StatusError
 			reply.Errors = append(reply.Errors, c.wrapErr(err.Error()))
 		}
+		println("get value:", string(reply.Body))
+
 		return reply
 	}
 	next, err := c.checkNode(finger)
@@ -375,6 +397,7 @@ func (c *chordImpl) Del(ctx *xrpc.XContext, req *chordpb.Message) (reply *chordp
 	if finger.Id == c.id {
 		var err error
 		err = c.store.Del(req.Key)
+		println("del key:", string(req.Key))
 		if err != nil {
 			reply.Purpose = chordpb.StatusError
 			reply.Errors = append(reply.Errors, c.wrapErr(err.Error()))
@@ -391,8 +414,8 @@ func (c *chordImpl) Del(ctx *xrpc.XContext, req *chordpb.Message) (reply *chordp
 	return
 }
 
-func (c *chordImpl) JoinNode(host string, port int) error {
-	addr := fmt.Sprintf("%s:%d", host, port)
+func (c *chordImpl) JoinNode(addr string) error {
+	host, port := parseAddr(addr)
 	id := c.h.Hash([]byte(addr))
 	node := &chordpb.Node{
 		Id:   id,
@@ -405,6 +428,9 @@ func (c *chordImpl) JoinNode(host string, port int) error {
 	}
 	ctx := c.newXCtx()
 	reply := next.Join(ctx, c.NewMessage(chordpb.NodeJoin, c.id, nil, nil))
+	if reply == nil {
+		return errors.New("join node failed")
+	}
 	if reply.Purpose == chordpb.StatusError {
 		err = errors.New(strings.Join(reply.Errors, " || "))
 		return err
@@ -465,9 +491,7 @@ func (c *chordImpl) sendMessage(ctx *xrpc.XContext, finger *chordpb.Node, req *c
 }
 
 func (c *chordImpl) notify() error {
-	if c.successor == nil {
-		return nil
-	}
+	println("set successor to: ", c.successor.String())
 	next, err := c.checkNode(c.successor)
 	if err != nil {
 		return err
@@ -482,6 +506,10 @@ func (c *chordImpl) notify() error {
 func (c *chordImpl) findFinger(id chordpb.NodeID) (*chordpb.Node, bool) {
 	nextNode := chordpb.Node{}
 	if id.LE(c.id) && (c.predecessor == nil || c.predecessor.Id.Less(id)) {
+		nextNode = *(c.self)
+		return &nextNode, true
+	}
+	if c.successor == nil {
 		nextNode = *(c.self)
 		return &nextNode, true
 	}
@@ -530,25 +558,38 @@ func (c *chordImpl) NewMessage(purpose int, id chordpb.NodeID, key []byte, body 
 	}
 }
 
+func setupClient(cc *xrpc.ClientConn) {
+	cryptoPlugin := cryptop.New()
+	cryptoPlugin.SetKey(sessionID, sessionKey)
+	cc.ApplyPlugins(cryptoPlugin)
+
+	cc.SetHeaderArg("user", user)
+	cc.SetHeaderArg("pass", pass)
+	cc.SetHeaderArg(cryptop.Key, sessionID)
+}
+
 func (c *chordImpl) checkNode(node *chordpb.Node) (cc chordpb.ChordClient, err error) {
-	next, ok := c.remoteNodes[node.Id]
+	var ok bool
+	cc, ok = c.remoteNodes[node.Id]
 	ctx := c.newXCtx()
 	if ok {
-		reply := next.HeartBeat(ctx, c.NewMessage(chordpb.HeartBeat, c.id, nil, nil))
-		if reply.Purpose == chordpb.StatusOk {
+		reply := cc.HeartBeat(ctx, c.NewMessage(chordpb.HeartBeat, c.id, nil, nil))
+		if reply != nil && reply.Purpose == chordpb.StatusOk {
 			return
 		}
 	}
-	conn, err := xrpc.Dial("tcp", fmt.Sprintf("%s:%d", node.Host, node.Port))
+	conn, err := xrpc.Dial("tcp", fmt.Sprintf("%s:%d", node.Host, node.Port), xrpc.WithInsecure(), xrpc.WithJsonCodec())
 	if err != nil {
 		return
 	}
 	c.amu.Lock()
+	defer c.amu.Unlock()
+
+	//setupClient(conn)
 	cc = chordpb.NewChordClient(conn)
 	c.remoteNodes[node.Id] = cc
 	c.activeRecords[node.Id] = time.Now()
 	c.conns[node.Id] = conn
-	c.amu.Unlock()
 	return
 }
 
@@ -578,6 +619,7 @@ func (c *chordImpl) updateSuccessor() {
 
 	next, err := c.checkNode(c.successor)
 	if err != nil {
+		c.successor = nil
 		return
 	}
 	reply := next.Lookup(ctx, c.NewMessage(chordpb.PredReq, c.successor.Id, nil, nil))
@@ -589,45 +631,88 @@ func (c *chordImpl) updateSuccessor() {
 	if err != nil {
 		return
 	}
-	c.successor = &newSuccessor
-	c.notify()
+	if c.id.Less(newSuccessor.Id) && newSuccessor.Id.Less(c.successor.Id) {
+		c.successor = &newSuccessor
+		c.notify()
+	}
 }
 
 func (c *chordImpl) checkConns(exp time.Time) {
 	timeout := time.Minute * 3
 	c.amu.Lock()
+	defer c.amu.Unlock()
 	for id, at := range c.activeRecords {
 		if exp.Sub(at) > timeout {
 			c.conns[id].Close()
 			delete(c.conns, id)
 			delete(c.remoteNodes, id)
 		}
-		addr := c.conns[id].Addr()
-		arr := strings.Split(addr, ":")
-		if len(arr) != 2 {
-			continue
-		}
-		host := arr[0]
-		port, _ := strconv.Atoi(arr[1])
+		host, port := parseAddr(c.conns[id].Addr())
 		c.checkNode(&chordpb.Node{
 			Id:   id,
 			Host: host,
 			Port: port,
 		})
 	}
-	c.amu.Unlock()
 }
 
 func (c *chordImpl) stabilize() {
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Second * 2)
+	n := 0
 	for {
 		select {
 		case exp := <-ticker.C:
+			n++
+			//log.Debugf("start stabilize[%d] at: %s", n, exp.String())
 			c.checkConns(exp)
 			c.updateSuccessor()
 			c.fixFingerTable()
+			//log.Debugf("finish stabilize[%d] at: %s", n, time.Now().String())
 		case <-c.quit:
+			log.Debug("quit stabilize")
 			break
 		}
 	}
+}
+
+func NewBlake2bHasher() chordpb.Hasher {
+	return &hasher{b: crypto.NewBlake2b()}
+}
+
+type hasher struct {
+	b *crypto.Blake2b
+}
+
+func (h *hasher) Hash(data []byte) [128]byte {
+	var hh [128]byte
+	bh := h.b.HashBytes(data)
+	copy(hh[:], bh)
+	return hh
+}
+
+func (h *hasher) Size() int {
+	return h.b.Size()
+}
+
+func NewSimpleKVStore() chordpb.KVStore {
+	return &simpleKV{kvs: map[string][]byte{}}
+}
+
+type simpleKV struct {
+	kvs map[string][]byte
+}
+
+func (m *simpleKV) Set(key, value []byte) (err error) {
+	m.kvs[string(key)] = value
+	return
+}
+
+func (m *simpleKV) Get(key []byte) (value []byte, err error) {
+	value = m.kvs[string(key)]
+	return
+}
+
+func (m *simpleKV) Del(key []byte) (err error) {
+	delete(m.kvs, string(key))
+	return
 }

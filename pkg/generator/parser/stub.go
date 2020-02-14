@@ -136,7 +136,7 @@ func genClientVars(method *Method) (string, string, string, string) {
 		}
 		for _, nn := range ns {
 			//if strings.HasPrefix(rb.Type, "*") {
-			//	starOuts = append(starOuts, nn)
+			//starOuts = append(starOuts, nn)
 			//} else {
 			starOuts = append(starOuts, "&"+nn)
 			//}

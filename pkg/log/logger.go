@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Available log levels
@@ -31,7 +33,7 @@ var (
 )
 
 func init() {
-	gLogger = NewSimpleDefaultLogger(os.Stdout, DEBUG, "gLogger->", true)
+	gLogger = NewSimpleDefaultLogger(os.Stdout, DEBUG, "gLogger", true)
 }
 
 func SetGlobalLogger(logger Logger) {
@@ -126,6 +128,10 @@ func Itol(level int) Level {
 type DefaultLogger struct {
 	Receivers []*Receiver
 	Active    bool
+	prefix    string
+
+	enableCounter bool
+	counter       *prometheus.CounterVec
 }
 
 // NewDefaultLogger returns a new DefaultLogger filled with given Receivers
@@ -167,6 +173,9 @@ func (l *DefaultLogger) logAll(opt *levelOptions, s string) {
 	// Skip everything if gLogger is disabled
 	if !l.Active {
 		return
+	}
+	if l.enableCounter {
+		l.counter.WithLabelValues(opt.Key).Inc()
 	}
 	callerInfo := ""
 	//if !(opt.Level == 1 || opt.Key == "Info" || opt.Level == 2 || opt.Key == "Warn") {
@@ -242,6 +251,18 @@ func (l *DefaultLogger) Panicf(format string, a ...interface{}) {
 	s := fmt.Sprintf(format, a...)
 	l.logAll(optError, s)
 	panic(s)
+}
+
+func (l *DefaultLogger) EnableCounter(labelNames ...string) *prometheus.CounterVec {
+	if len(labelNames) == 0 {
+		labelNames = append(labelNames, "level")
+	}
+	l.counter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: l.prefix + "log_total",
+		Help: "Total number of log items.",
+	}, labelNames)
+	l.enableCounter = true
+	return l.counter
 }
 
 // Open is a short function to open a file with needed options

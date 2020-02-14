@@ -7,19 +7,17 @@ import (
 	"net"
 	"net/http"
 
-	"x.io/xrpc/pkg/codes"
-	"x.io/xrpc/plugin"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+	"x.io/xrpc/pkg/codes"
 )
 
 const (
 	Name = "prom"
 )
 
-func New() plugin.Plugin {
+func New() *promPlugin {
 	p := &promPlugin{
 		metrics: newDefaultMetrics(Server),
 	}
@@ -27,16 +25,22 @@ func New() plugin.Plugin {
 	reg.MustRegister(p.metrics)
 	p.uri = "/metrics"
 	p.port = 13140
-	p.gatherer = reg
+	p.reg = reg
 	return p
 }
 
 type promPlugin struct {
-	metrics  *DefaultMetrics
-	uri      string
-	port     uint
-	gatherer prometheus.Gatherer
-	s        *http.Server
+	metrics *DefaultMetrics
+	uri     string
+	port    uint
+	reg     *prometheus.Registry
+	s       *http.Server
+}
+
+func (p *promPlugin) Collect(cs ...prometheus.Collector) {
+	if p.reg != nil {
+		p.reg.MustRegister(cs...)
+	}
 }
 
 func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
@@ -56,11 +60,12 @@ func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp inter
 
 // Start 在指定地址上开启prometheus http，未提供Gatherer的情况下使用默认Gatherer
 func (p *promPlugin) Start() error {
-	if p.gatherer == nil {
-		p.gatherer = prometheus.DefaultGatherer
+	var gather prometheus.Gatherer = p.reg
+	if gather == nil {
+		gather = prometheus.DefaultGatherer
 	}
 
-	http.Handle(p.uri, promhttp.HandlerFor(p.gatherer, promhttp.HandlerOpts{}))
+	http.Handle(p.uri, promhttp.HandlerFor(gather, promhttp.HandlerOpts{}))
 	addr := fmt.Sprintf(":%d", p.port)
 	server := &http.Server{
 		Addr:    addr,

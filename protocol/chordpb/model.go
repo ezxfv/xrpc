@@ -3,6 +3,7 @@ package chordpb
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 )
 
@@ -38,6 +39,10 @@ type Node struct {
 	Id   NodeID
 	Host string
 	Port int
+}
+
+func (n Node) String() string {
+	return fmt.Sprintf("%s:%d", n.Host, n.Port)
 }
 
 type Message struct {

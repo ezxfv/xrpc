@@ -3,10 +3,10 @@
 package chordpb
 
 import (
-    "x.io/xrpc"
-    "fmt"
     "context"
     "x.io/xrpc/pkg/codes"
+    "x.io/xrpc"
+    "fmt"
 )
 
 // ChordClient is the client API for Chord service.

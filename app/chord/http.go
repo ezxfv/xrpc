@@ -47,7 +47,7 @@ func (m *mockChord) dump(prefix string) {
 	println(prefix + ": " + string(d))
 }
 
-func Server(addr string, mc HttpAPI) error {
+func ServerAPI(addr string, mc HttpAPI) error {
 	e := echo.New()
 
 	e.Use(middleware.Logger())
@@ -82,6 +82,5 @@ func Server(addr string, mc HttpAPI) error {
 		return err
 	}
 	e.Listener = lis
-	// Start serve
 	return e.Start(addr)
 }

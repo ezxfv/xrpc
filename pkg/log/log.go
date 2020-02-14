@@ -1,5 +1,7 @@
 package log
 
+import "github.com/prometheus/client_golang/prometheus"
+
 type Level int
 type Logger interface {
 	SetLevel(lvl Level)
@@ -16,6 +18,8 @@ type Logger interface {
 	Fatalf(format string, a ...interface{})
 	Panic(a ...interface{})
 	Panicf(format string, a ...interface{})
+
+	EnableCounter(labelNames ...string) *prometheus.CounterVec
 }
 
 // SetLevel sets the log level of ALL receivers

@@ -7,13 +7,12 @@ import (
 
 	"x.io/xrpc/pkg/log"
 	"x.io/xrpc/pkg/net"
-	"x.io/xrpc/plugin"
 
 	echo "github.com/labstack/echo/v4"
 	"google.golang.org/grpc"
 )
 
-func New() plugin.Plugin {
+func New() *logPlugin {
 	return &logPlugin{
 		l: log.NewSimpleDefaultLogger(os.Stdout, log.DEBUG, "log_plugin", true),
 	}
@@ -21,6 +20,10 @@ func New() plugin.Plugin {
 
 type logPlugin struct {
 	l log.Logger
+}
+
+func (p *logPlugin) Logger() log.Logger {
+	return p.l
 }
 
 func (p *logPlugin) Start() error {

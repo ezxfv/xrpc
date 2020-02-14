@@ -71,8 +71,8 @@ type Server struct {
 }
 
 func (s *Server) Serve(lis net.Listener) error {
-	go s.listen(lis)
-	return nil
+	err := s.listen(lis)
+	return err
 }
 
 func (s *Server) SetAuthenticator(authenticator Authenticator) {
@@ -142,10 +142,11 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	s.pc.DoRegisterService(sd, ss)
 }
 
-func (s *Server) listen(lis net.Listener) {
+func (s *Server) listen(lis net.Listener) (e error) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
+			e = err
 			break
 		}
 		p := make([]byte, len(Preface))
@@ -166,6 +167,7 @@ func (s *Server) listen(lis net.Listener) {
 		}
 		go s.handleSession(conn, session)
 	}
+	return
 }
 
 func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
