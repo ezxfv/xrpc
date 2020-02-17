@@ -17,14 +17,17 @@ const (
 	Name = "prom"
 )
 
-func New() *promPlugin {
+func New(labels map[string]string, port ...int) *promPlugin {
 	p := &promPlugin{
-		metrics: newDefaultMetrics(Server),
+		metrics: newDefaultMetrics(Server, labels),
 	}
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(p.metrics)
 	p.uri = "/metrics"
 	p.port = 13140
+	if len(port) > 0 {
+		p.port = port[0]
+	}
 	p.reg = reg
 	return p
 }
@@ -32,11 +35,15 @@ func New() *promPlugin {
 type promPlugin struct {
 	metrics *DefaultMetrics
 	uri     string
-	port    uint
+	port    int
 	reg     *prometheus.Registry
 	s       *http.Server
 }
 
+func (p *promPlugin) EnableDelay(bucket []float64) {
+	p.metrics.EnableDelay(bucket)
+
+}
 func (p *promPlugin) Collect(cs ...prometheus.Collector) {
 	if p.reg != nil {
 		p.reg.MustRegister(cs...)

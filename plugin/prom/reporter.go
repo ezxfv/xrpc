@@ -48,5 +48,9 @@ type defaultReporter struct {
 // Handled 更新metrics信息
 func (r *defaultReporter) Handled(code string) {
 	r.metrics.handledCounter.WithLabelValues(r.rpcType, r.service, r.method, code).Inc()
-	r.metrics.handledHistogram.WithLabelValues(r.rpcType, r.service, r.method).Observe(float64(time.Since(r.startTime).Milliseconds()))
+	if r.metrics.enableDelay {
+		delay := float64(time.Since(r.startTime).Milliseconds())
+		r.metrics.handledHistogram.WithLabelValues(r.rpcType, r.service, r.method).Observe(delay)
+		r.metrics.handledGauge.WithLabelValues(r.rpcType, r.service, r.method).Set(delay)
+	}
 }
