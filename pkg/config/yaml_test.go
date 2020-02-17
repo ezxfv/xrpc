@@ -122,6 +122,17 @@ func TestAlias(t *testing.T) {
 	assert.Equal(t, "localhost", host)
 }
 
+func TestChainGet(t *testing.T) {
+	p := config.NewYamlParser(2)
+	p.Parse("./test.yml")
+
+	host := p.Get(".test").Get(".host").String()
+	assert.Equal(t, "localhost", host)
+
+	webs := p.Get(".test.labels.[1]").Get(".author.web").StrArray()
+	assert.Equal(t, []string{"baidu.com", "google.com"}, webs)
+}
+
 func TestSquareSymbol(t *testing.T) {
 	p := config.NewYamlParser(2)
 	p.Parse("./test.yml")

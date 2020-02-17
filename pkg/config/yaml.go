@@ -69,6 +69,9 @@ func (n *YamlNode) value(t ValueType) interface{} {
 }
 
 func (n *YamlNode) Get(path string) *YamlNode {
+	if !strings.HasPrefix(path, n.Path) {
+		path = n.Path + path
+	}
 	if newPath, ok := n.alias[path]; ok {
 		path = newPath
 	}
