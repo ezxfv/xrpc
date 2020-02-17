@@ -1,0 +1,38 @@
+name: xxx
+age: 100
+defaults: &defaults
+  adapter:  postgres
+  host:     localhost
+
+dev:
+  db: myapp
+  <<: *defaults
+
+test:
+  database: myapp_test
+  <<: *defaults
+  ints:
+    - 1
+    - 2
+    - 3
+  float: 1.11
+  fs:
+    - 1.1
+    - 2.2
+    - 3.3
+  ss:
+    - a
+    - b
+    - c
+  labels:
+    - type: yaml
+    - author:
+        project: xrpc
+        desc: 'a simple rpc framework'
+        version: 1.0
+        web: [baidu.com, google.com]
+        modules:
+          pkg: 1
+          plugin:
+            - prom
+            - trace

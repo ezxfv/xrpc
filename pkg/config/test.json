@@ -1,0 +1,53 @@
+{
+  "host": "127.0.0.1",
+  "peer_name": "IPeer",
+  "network": {
+    "name": "INetwork",
+    "listeners": [
+      {
+        "protocol":"udp",
+        "port": "1008",
+        "name": "udp_listener"
+      },
+      {
+        "protocol":"tcp",
+        "port": "1009",
+        "name": "tcp_listener"
+
+      },
+      {
+        "protocol":"kcp",
+        "port": "1010",
+        "name": "kcp_listener"
+      }
+    ]
+  },
+  "A": {
+    "B": {
+      "C": "Boom"
+    }
+  },
+  "int_arr": [0,1,2,3,4,5,6,7,8,9,10,11],
+  "float_arr": [0.1, 0.2, 0.3],
+  "match": {
+    "sub_match": {
+      "acb": 1,
+      "bac": 2,
+      "cab": 3
+    },
+    "submatch": {
+      "a": 1
+    }
+  },
+  "maps" : {
+    "str": {
+      "a":"a"
+    },
+    "float": {
+      "f":0.01
+    },
+    "int": {
+      "i":1
+    }
+  }
+}
