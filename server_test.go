@@ -14,7 +14,6 @@ import (
 	"x.io/xrpc/plugin/chord"
 	"x.io/xrpc/plugin/crypto"
 	"x.io/xrpc/plugin/prom"
-	"x.io/xrpc/plugin/trace"
 	"x.io/xrpc/plugin/whitelist"
 
 	greeter_pb "x.io/xrpc/protocol/greeter"
@@ -31,6 +30,8 @@ var (
 	enableCrypto = true
 	enableAPI    = true
 	enableChord  = true
+
+	labels = map[string]string{"xrpc": "dev"}
 )
 
 type MathImpl struct {
@@ -76,7 +77,7 @@ func (m *MathImpl) Inc(n *math_pb.Num) (int32, *math_pb.Num) {
 }
 
 func (m *MathImpl) Add(a, b int) int {
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(120)) * time.Millisecond)
 	return a + b
 }
 
@@ -107,11 +108,12 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 	}
 	s := xrpc.NewServer()
 	if enablePlugin {
-		promPlugin := prom.New()
+		promPlugin := prom.New(labels)
+		promPlugin.EnableDelay([]float64{1, 10, 20, 40, 80, 100})
 		//logPlugin := logp.New()
-		tracePlugin := trace.New()
+		//tracePlugin := trace.New()
 		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)
-		s.ApplyPlugins(promPlugin, tracePlugin, whitelistPlugin)
+		s.ApplyPlugins(promPlugin, whitelistPlugin)
 		if enableCrypto {
 			cryptoPlugin := crypto.New()
 			cryptoPlugin.SetKey(sessionID, sessionKey)

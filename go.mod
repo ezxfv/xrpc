@@ -26,6 +26,7 @@ require (
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20191217153810-f85b25db303b // indirect
 	github.com/tidwall/gjson v1.3.5
+	github.com/tidwall/sjson v1.0.4
 	github.com/tjfoc/gmsm v1.2.0 // indirect
 	github.com/uber/jaeger-client-go v2.22.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
@@ -34,5 +35,7 @@ require (
 	github.com/xtaci/smux v1.5.7
 	go.uber.org/atomic v1.5.1 // indirect
 	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
+	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
 	google.golang.org/grpc v1.24.0
+	gopkg.in/yaml.v2 v2.2.2
 )

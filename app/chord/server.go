@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	enablePlugin = true
+	enablePlugin = false
 	enableTrace  = false
 	enableAuth   = false
 	enableCrypto = false
@@ -46,8 +46,9 @@ func newServer(protocol, addr string) (lis net.Listener, svr *xrpc.Server) {
 		log.Fatal(err)
 	}
 	s := xrpc.NewServer()
+	_, port := parseAddr(addr)
 	if enablePlugin {
-		promPlugin := prom.New()
+		promPlugin := prom.New(port + 2)
 		//logPlugin := logp.New()
 		//promPlugin.Collect(logPlugin.Logger().EnableCounter())
 		whitelistPlugin := whitelist.New(map[string]bool{"127.0.0.1": true}, nil)

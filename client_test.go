@@ -169,10 +169,8 @@ func TestMathClient1K(t *testing.T) {
 	N := 1000
 	for i := 0; i < N; i++ {
 		client.Add(ctx, a, b)
-		client.Calc(ctx, a, b)
-		client.Inc(ctx, n)
 	}
-	fmt.Printf("%2f ms/op\n", float64(time.Since(now).Milliseconds())/float64(3*N))
+	fmt.Printf("%2f ms/op\n", float64(time.Since(now).Milliseconds())/float64(N))
 }
 
 func BenchmarkMathClientInc(tb *testing.B) {
