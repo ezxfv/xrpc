@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -244,6 +245,7 @@ func NewYamlParser(ident int) *YamlParser {
 			Depth: 0,
 			Ident: ident,
 		},
+		kvs: map[string]*YamlNode{},
 	}
 }
 
@@ -251,21 +253,61 @@ type YamlParser struct {
 	Ident int
 	alias map[string]*YamlNode
 	root  *YamlNode
+
+	kvs map[string]*YamlNode
 }
 
 func (y *YamlParser) Get(path string) *YamlNode {
 	if path == "" || path == "." {
 		return y.root
 	}
-	for _, c := range y.root.MapNodes {
-		if c.Path == path {
-			return c
-		}
-		if strings.HasPrefix(path, c.Path) {
-			return c.Get(path)
-		}
+	n, ok := y.kvs[path]
+	if ok {
+		return n
 	}
 	return &YamlNode{}
+}
+
+func GenStdRegexp(pattern string) string {
+	kkp := `(?U)\[(.*)\]`
+	rr := regexp.MustCompile(kkp)
+	for _, a := range rr.FindAllStringSubmatchIndex(pattern, -1) {
+		ss := pattern[a[2]:a[3]]
+		if _, err := strconv.Atoi(ss); err != nil {
+			if ss == "*" {
+				pattern = pattern[:a[0]] + `\[(.` + ss + `)\]` + pattern[a[1]:]
+			} else {
+				pattern = pattern[:a[0]] + `\[[` + ss + `]\]` + pattern[a[1]:]
+			}
+		}
+	}
+	return pattern
+}
+
+func (y *YamlParser) Match(pattern string) *YamlNode {
+	if pattern == "" || pattern == "." {
+		return y.root
+	}
+	result := &YamlNode{
+		Name:     pattern,
+		Path:     pattern,
+		Ident:    y.Ident,
+		Depth:    0,
+		Line:     0,
+		Value:    "",
+		ArrNodes: nil,
+		MapNodes: nil,
+		prev:     nil,
+		alias:    map[string]string{},
+	}
+	pattern = GenStdRegexp(pattern)
+	r := regexp.MustCompile(pattern)
+	for path, n := range y.kvs {
+		if r.MatchString(path) {
+			result.ArrNodes = append(result.ArrNodes, n)
+		}
+	}
+	return result
 }
 
 func CountSpace(s string) int {
@@ -322,6 +364,14 @@ func parseLine(line []byte) (ok bool, key, val string) {
 	return false, k, v
 }
 
+func (y *YamlParser) add(n *YamlNode, path ...string) {
+	var p = n.Path
+	if len(path) > 0 {
+		p = path[0]
+	}
+	y.kvs[p] = n
+}
+
 func (y *YamlParser) Parse(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
@@ -349,14 +399,18 @@ func (y *YamlParser) Parse(file string) error {
 			if len(starNode.ArrNodes) > 0 {
 				s := len(pointer.ArrNodes)
 				pointer.ArrNodes = append(pointer.ArrNodes, starNode.ArrNodes...)
-				for i := 0; i < len(starNode.ArrNodes); i++ {
-					pointer.alias[fmt.Sprintf("%s.[%d].%s", pointer.Path, s+i, starNode.ArrNodes[i].Name)] = starNode.ArrNodes[i].Path
+				for i, an := range starNode.ArrNodes {
+					aliasPath := fmt.Sprintf("%s.[%d].%s", pointer.Path, s+i, an.Name)
+					y.add(an, aliasPath)
+					pointer.alias[aliasPath] = an.Path
 				}
 			}
 			if len(starNode.MapNodes) > 0 {
 				pointer.MapNodes = append(pointer.MapNodes, starNode.MapNodes...)
 				for _, mn := range starNode.MapNodes {
-					pointer.alias[fmt.Sprintf("%s.%s", pointer.Path, mn.Name)] = mn.Path
+					aliasPath := fmt.Sprintf("%s.%s", pointer.Path, mn.Name)
+					y.add(mn, aliasPath)
+					pointer.alias[aliasPath] = mn.Path
 				}
 			}
 			continue
@@ -388,7 +442,9 @@ func (y *YamlParser) Parse(file string) error {
 					prev:  node,
 					alias: map[string]string{},
 				}
+				y.add(valNode)
 				node.MapNodes = append(node.MapNodes, valNode)
+				y.add(node)
 				pointer.ArrNodes = append(pointer.ArrNodes, node)
 			} else {
 				valNode := &YamlNode{
@@ -409,6 +465,7 @@ func (y *YamlParser) Parse(file string) error {
 					pointer = valNode
 				} else {
 					node.Value = vv
+					y.add(node)
 					pointer.ArrNodes = append(pointer.ArrNodes, node)
 				}
 			}
@@ -445,11 +502,14 @@ func (y *YamlParser) Parse(file string) error {
 						prev:     node,
 						alias:    map[string]string{},
 					}
+					y.add(elemNode)
 					node.ArrNodes = append(node.ArrNodes, elemNode)
 				}
+				y.add(node)
 				pointer.MapNodes = append(pointer.MapNodes, node)
 			} else {
 				node.Value = v
+				y.add(node)
 				pointer.MapNodes = append(pointer.MapNodes, node)
 			}
 		} else {

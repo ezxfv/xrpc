@@ -24,6 +24,11 @@ test:
     - a
     - b
     - c
+  maps:
+    - key: k1
+    - key: k2
+    - key: k3
+    - nokey: k4
   labels:
     - type: yaml
     - author:

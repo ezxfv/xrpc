@@ -2,6 +2,8 @@ package config_test
 
 import (
 	"bytes"
+	"regexp"
+	"sort"
 	"testing"
 
 	"x.io/xrpc/pkg/config"
@@ -139,4 +141,60 @@ func TestSquareSymbol(t *testing.T) {
 
 	webs := p.Get(".test.labels.[1].author.web").StrArray()
 	assert.Equal(t, []string{"baidu.com", "google.com"}, webs)
+}
+
+func BenchmarkArray(b *testing.B) {
+	p := config.NewYamlParser(2)
+	p.Parse("./test.yml")
+	for i := 0; i < b.N; i++ {
+		webs := p.Get(".test.labels.[1].author.web").StrArray()
+		assert.Equal(b, []string{"baidu.com", "google.com"}, webs)
+	}
+}
+
+func TestYamlNode_Match(t *testing.T) {
+	p := config.NewYamlParser(2)
+	p.Parse("./test.yml")
+
+	keys := p.Match(".test.maps.[*].key").StrArray()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"k1", "k2", "k3"}, keys)
+
+	keys = p.Match(".test.maps.[^1].key").StrArray()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"k1", "k3"}, keys)
+
+	keys = p.Match(".test.maps.[1-2].key").StrArray()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"k2", "k3"}, keys)
+
+	keys = p.Match("(.*).[^3].key").StrArray()
+	sort.Strings(keys)
+	assert.Equal(t, []string{"k1", "k2", "k3"}, keys)
+
+	fs := p.Match("(.*).fs.[^1]").FloatArray()
+	sort.Float64s(fs)
+	assert.Equal(t, []float64{1.1, 3.3}, fs)
+}
+
+func TestGenRegexp(t *testing.T) {
+	pattern := ".test.maps.[*].key"
+	src0 := ".test.maps.[0].key"
+	src1 := ".test.maps.[1].key"
+	src2 := ".test.maps.[2].key"
+	pattern = config.GenStdRegexp(pattern)
+	r := regexp.MustCompile(pattern)
+	assert.Equal(t, true, r.MatchString(src0))
+
+	pattern = ".test.maps.[1-2].key"
+	pattern = config.GenStdRegexp(pattern)
+	r = regexp.MustCompile(pattern)
+	assert.Equal(t, true, r.MatchString(src1))
+	assert.Equal(t, true, r.MatchString(src2))
+
+	pattern = ".test.maps.[^1].key"
+	pattern = config.GenStdRegexp(pattern)
+	r = regexp.MustCompile(pattern)
+	assert.Equal(t, true, r.MatchString(src0))
+	assert.Equal(t, true, r.MatchString(src2))
 }

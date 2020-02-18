@@ -69,6 +69,14 @@ func TestConfigJson(t *testing.T) {
 	assert.Equal(t, "Boom", cfg.String("A.B.C"))
 }
 
+func BenchmarkConfigJson(b *testing.B) {
+	// default config path is "./config.json"
+	cfg.LoadCfg("./test.json")
+	for i := 0; i < b.N; i++ {
+		assert.Equal(b, []float64{0.1, 0.2, 0.3}, cfg.FloatArray("float_arr"))
+	}
+}
+
 func TestConfigEnv(t *testing.T) {
 	keys := []string{"GOROOT", "GOPATH", "PATH"}
 	xcfg.LoadEnv(keys)
