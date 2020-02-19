@@ -1,5 +1,4 @@
 name: xxx
-age: 100
 defaults: &defaults
   adapter:  postgres
   host:     localhost
@@ -26,9 +25,26 @@ test:
     - c
   maps:
     - key: k1
+      val: v1
+      payload:
+        len: 1
+        hash: hhh
     - key: k2
-    - key: k3
-    - nokey: k4
+      val: v2
+      payload:
+        len: 2
+        hash: hhh
+    - val: v3
+      payload:
+        len: 3
+        hash: hhh
+      key: k3
+    - payload:
+        len: 4
+        hash: hhh
+      nokey: k4
+      noval: v4
+
   labels:
     - type: yaml
     - author:
@@ -36,6 +52,7 @@ test:
         desc: 'a simple rpc framework'
         version: 1.0
         web: [baidu.com, google.com]
+        <<: *defaults
         modules:
           pkg: 1
           plugin:

@@ -15,6 +15,8 @@ type Author struct {
 	Project string  `yaml:"project,omitempty"`
 	Desc    string  `yaml:"desc,omitempty"`
 	Version float64 `yaml:"version,omitempty"`
+	Adapter string  `yaml:"adapter,omitempty"`
+	Host    string  `yaml:"host,omitempty"`
 }
 
 type PAuthor struct {
@@ -29,6 +31,9 @@ func TestYamlParser_Parse(t *testing.T) {
 func TestYamlParser_Get(t *testing.T) {
 	p := config.NewYamlParser(2)
 	p.Parse("./test.yml")
+
+	name := p.Get(".name").String()
+	assert.Equal(t, "xxx", name)
 
 	db := p.Get(".dev.db").String()
 	assert.Equal(t, "myapp", db)
@@ -61,6 +66,8 @@ func TestYamlNode_Marshal(t *testing.T) {
 	assert.Equal(t, "xrpc", pa.Author.Project)
 	assert.Equal(t, "a simple rpc framework", pa.Author.Desc)
 	assert.Equal(t, 1.0, pa.Author.Version)
+	assert.Equal(t, "postgres", pa.Author.Adapter)
+	assert.Equal(t, "localhost", pa.Author.Host)
 }
 
 func TestYamlNode_Dump(t *testing.T) {
@@ -175,6 +182,37 @@ func TestYamlNode_Match(t *testing.T) {
 	fs := p.Match("(.*).fs.[^1]").FloatArray()
 	sort.Float64s(fs)
 	assert.Equal(t, []float64{1.1, 3.3}, fs)
+}
+
+func TestYamlNode_MatchVal(t *testing.T) {
+	p := config.NewYamlParser(2)
+	p.Parse("./test.yml")
+
+	values := p.Match(".test.maps.[*].val").StrArray()
+	sort.Strings(values)
+	assert.Equal(t, []string{"v1", "v2", "v3"}, values)
+
+	values = p.Match(".test.maps.[^1].val").StrArray()
+	sort.Strings(values)
+	assert.Equal(t, []string{"v1", "v3"}, values)
+
+	values = p.Match(".test.maps.[1-2].val").StrArray()
+	sort.Strings(values)
+	assert.Equal(t, []string{"v2", "v3"}, values)
+
+	lens := p.Match(".test.maps.[1-2].payload.len").StrArray()
+	sort.Strings(lens)
+	assert.Equal(t, []string{"2", "3"}, lens)
+
+	hhh := p.Match(".test.maps.[1-2].payload.hash").StrArray()
+	sort.Strings(hhh)
+	assert.Equal(t, []string{"hhh", "hhh"}, hhh)
+
+	k := p.Get(".test.maps.[3].nokey").String()
+	assert.Equal(t, "k4", k)
+
+	h := p.Get(".test.maps.[3].payload.hash").String()
+	assert.Equal(t, "hhh", h)
 }
 
 func TestGenRegexp(t *testing.T) {

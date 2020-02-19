@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -36,8 +35,9 @@ type YamlNode struct {
 	ArrNodes []*YamlNode
 	MapNodes []*YamlNode
 
-	prev  *YamlNode
-	alias map[string]string
+	prev      *YamlNode
+	alias     map[string]string
+	aliasNode map[string]*YamlNode
 }
 
 func (n *YamlNode) Marshal(v interface{}) (err error) {
@@ -45,6 +45,13 @@ func (n *YamlNode) Marshal(v interface{}) (err error) {
 	n.Dump(w)
 	println(w.String())
 	return yaml.Unmarshal(w.Bytes(), v)
+}
+
+func (n *YamlNode) addAliasNode(name string, a *YamlNode) {
+	if n.aliasNode == nil {
+		n.aliasNode = map[string]*YamlNode{}
+	}
+	n.aliasNode[name] = a
 }
 
 func (n *YamlNode) value(t ValueType) interface{} {
@@ -85,6 +92,14 @@ func (n *YamlNode) Get(path string) *YamlNode {
 		}
 	}
 	for _, c := range n.ArrNodes {
+		if c.Path == path {
+			return c
+		}
+		if strings.HasPrefix(path, c.Path) {
+			return c.Get(path)
+		}
+	}
+	for _, c := range n.aliasNode {
 		if c.Path == path {
 			return c
 		}
@@ -187,10 +202,17 @@ func genSpace(ident, depth int) []byte {
 	return []byte(s)
 }
 
-func (n *YamlNode) Dump(w io.Writer, start ...int) {
+func (n *YamlNode) Dump(w *bytes.Buffer, start ...int) {
 	s := n.Depth
 	if len(start) > 0 {
 		s = start[0]
+	}
+	for _, c := range n.aliasNode {
+		lw := bytes.NewBuffer([]byte(nil))
+		c.Dump(lw, 0)
+		lw.Write(w.Bytes())
+		w.Reset()
+		w.Write(lw.Bytes())
 	}
 	name := n.Name
 	depth := n.Depth - s - 1
@@ -208,7 +230,9 @@ func (n *YamlNode) Dump(w io.Writer, start ...int) {
 			}
 			w.Write(printf("%s: %s\n", name, n.Value))
 		}
-		return
+		if !strings.HasPrefix(n.Value, "&") {
+			return
+		}
 	}
 
 	if len(n.ArrNodes) > 0 {
@@ -227,7 +251,7 @@ func (n *YamlNode) Dump(w io.Writer, start ...int) {
 					space = space[2:]
 				}
 				w.Write(printf("%s- %s:\n", space, n.Name))
-			} else {
+			} else if len(n.Value) == 0 {
 				w.Write(printf("%s%s:\n", space, n.Name))
 			}
 		}
@@ -392,13 +416,13 @@ func (y *YamlParser) Parse(file string) error {
 		pointer = move(pointer, line)
 		ok, k, v := parseLine(line)
 		if k == "<<" {
-			starNode, ok := y.alias[strings.Replace(v, "*", "&", 1)]
+			aliasNodeName := strings.Replace(v, "*", "&", 1)
+			starNode, ok := y.alias[aliasNodeName]
 			if !ok {
 				continue
 			}
 			if len(starNode.ArrNodes) > 0 {
 				s := len(pointer.ArrNodes)
-				pointer.ArrNodes = append(pointer.ArrNodes, starNode.ArrNodes...)
 				for i, an := range starNode.ArrNodes {
 					aliasPath := fmt.Sprintf("%s.[%d].%s", pointer.Path, s+i, an.Name)
 					y.add(an, aliasPath)
@@ -406,14 +430,13 @@ func (y *YamlParser) Parse(file string) error {
 				}
 			}
 			if len(starNode.MapNodes) > 0 {
-				pointer.MapNodes = append(pointer.MapNodes, starNode.MapNodes...)
 				for _, mn := range starNode.MapNodes {
 					aliasPath := fmt.Sprintf("%s.%s", pointer.Path, mn.Name)
 					y.add(mn, aliasPath)
 					pointer.alias[aliasPath] = mn.Path
 				}
 			}
-			continue
+			pointer.addAliasNode(aliasNodeName, starNode)
 		}
 		var node *YamlNode
 		if strings.HasPrefix(k, "-") {
@@ -423,7 +446,7 @@ func (y *YamlParser) Parse(file string) error {
 			node = &YamlNode{
 				Name:     kk,
 				Path:     fmt.Sprintf("%s.%s", pointer.Path, kk),
-				prev:     nil,
+				prev:     pointer,
 				Ident:    pointer.Ident,
 				Depth:    pointer.Depth + 1,
 				Line:     n,
@@ -444,8 +467,7 @@ func (y *YamlParser) Parse(file string) error {
 				}
 				y.add(valNode)
 				node.MapNodes = append(node.MapNodes, valNode)
-				y.add(node)
-				pointer.ArrNodes = append(pointer.ArrNodes, node)
+				pointer = node
 			} else {
 				valNode := &YamlNode{
 					Name:  vv,
@@ -457,19 +479,19 @@ func (y *YamlParser) Parse(file string) error {
 					prev:  node,
 					alias: map[string]string{},
 				}
+				y.add(node)
 				if strings.HasSuffix(vv, ":") {
 					node.prev = pointer
 					valNode.Name = strings.TrimRight(valNode.Name, ":")
 					valNode.Path = strings.TrimRight(valNode.Path, ":")
 					valNode.Depth += 1
+					y.add(valNode)
 					pointer = valNode
 				} else {
 					node.Value = vv
-					y.add(node)
 					pointer.ArrNodes = append(pointer.ArrNodes, node)
 				}
 			}
-			continue
 		}
 		node = &YamlNode{
 			Name:     k,
@@ -506,17 +528,23 @@ func (y *YamlParser) Parse(file string) error {
 					node.ArrNodes = append(node.ArrNodes, elemNode)
 				}
 				y.add(node)
-				pointer.MapNodes = append(pointer.MapNodes, node)
+				if isElem(pointer.Name) {
+					pointer.ArrNodes = append(pointer.ArrNodes, node)
+				} else {
+					pointer.MapNodes = append(pointer.MapNodes, node)
+				}
 			} else {
 				node.Value = v
 				y.add(node)
 				pointer.MapNodes = append(pointer.MapNodes, node)
 			}
 		} else {
-			pointer = node
 			if strings.HasPrefix(v, "&") {
-				y.alias[v] = pointer
+				node.Value = v
+				y.alias[v] = node
 			}
+			pointer = node
+			y.add(node)
 		}
 	}
 	pointer = move(pointer, []byte{})
