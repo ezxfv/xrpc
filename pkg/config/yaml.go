@@ -18,6 +18,7 @@ type ValueType int
 
 const (
 	IntVal ValueType = iota
+	BoolVal
 	Float64Val
 	StringVal
 	ArrayVal
@@ -58,6 +59,8 @@ func (n *YamlNode) value(t ValueType) interface{} {
 	switch t {
 	case StringVal:
 		return n.Value
+	case BoolVal:
+		return len(n.Value) > 0 && n.Value == "true"
 	case IntVal:
 		i, _ := strconv.Atoi(n.Value)
 		return i
@@ -117,6 +120,13 @@ func (n *YamlNode) String() string {
 	return n.value(StringVal).(string)
 }
 
+func (n *YamlNode) Bool() bool {
+	if len(n.Value) == 0 {
+		return false
+	}
+	return n.value(BoolVal).(bool)
+}
+
 func (n *YamlNode) Int() int {
 	if len(n.Value) == 0 {
 		return 0
@@ -145,6 +155,42 @@ func (n *YamlNode) Array() []*YamlNode {
 	return n.value(ArrayVal).([]*YamlNode)
 }
 
+func (n *YamlNode) BoolMap() map[string]bool {
+	if len(n.ArrNodes) == 0 {
+		return map[string]bool{}
+	}
+	is := n.value(ArrayVal).([]*YamlNode)
+	res := map[string]bool{}
+	for _, s := range is {
+		res[s.Name] = s.Bool()
+	}
+	return res
+}
+
+func (n *YamlNode) BoolArray() []bool {
+	if len(n.ArrNodes) == 0 {
+		return []bool{}
+	}
+	is := n.value(ArrayVal).([]*YamlNode)
+	var res []bool
+	for _, s := range is {
+		res = append(res, s.Bool())
+	}
+	return res
+}
+
+func (n *YamlNode) IntMap() map[string]int {
+	if len(n.ArrNodes) == 0 {
+		return map[string]int{}
+	}
+	is := n.value(ArrayVal).([]*YamlNode)
+	res := map[string]int{}
+	for _, s := range is {
+		res[s.Name] = s.Int()
+	}
+	return res
+}
+
 func (n *YamlNode) IntArray() []int {
 	if len(n.ArrNodes) == 0 {
 		return []int{}
@@ -152,11 +198,19 @@ func (n *YamlNode) IntArray() []int {
 	is := n.value(ArrayVal).([]*YamlNode)
 	var res []int
 	for _, s := range is {
-		v, err := strconv.Atoi(s.Value)
-		if err != nil {
-			continue
-		}
-		res = append(res, v)
+		res = append(res, s.Int())
+	}
+	return res
+}
+
+func (n *YamlNode) FloatMap() map[string]float64 {
+	if len(n.ArrNodes) == 0 {
+		return map[string]float64{}
+	}
+	is := n.value(ArrayVal).([]*YamlNode)
+	res := map[string]float64{}
+	for _, s := range is {
+		res[s.Name] = s.Float64()
 	}
 	return res
 }
@@ -168,11 +222,19 @@ func (n *YamlNode) FloatArray() []float64 {
 	is := n.value(ArrayVal).([]*YamlNode)
 	var res []float64
 	for _, s := range is {
-		v, err := strconv.ParseFloat(s.Value, 10)
-		if err != nil {
-			continue
-		}
-		res = append(res, v)
+		res = append(res, s.Float64())
+	}
+	return res
+}
+
+func (n *YamlNode) StrMap() map[string]string {
+	if len(n.ArrNodes) == 0 {
+		return map[string]string{}
+	}
+	is := n.value(ArrayVal).([]*YamlNode)
+	res := map[string]string{}
+	for _, s := range is {
+		res[s.Name] = s.String()
 	}
 	return res
 }
@@ -184,7 +246,7 @@ func (n *YamlNode) StrArray() []string {
 	is := n.value(ArrayVal).([]*YamlNode)
 	var res []string
 	for _, s := range is {
-		res = append(res, s.Value)
+		res = append(res, s.String())
 	}
 	return res
 }
@@ -207,7 +269,10 @@ func (n *YamlNode) Dump(w *bytes.Buffer, start ...int) {
 	if len(start) > 0 {
 		s = start[0]
 	}
-	for _, c := range n.aliasNode {
+	for aliasName, c := range n.aliasNode {
+		if strings.Contains(w.String(), aliasName) {
+			continue
+		}
 		lw := bytes.NewBuffer([]byte(nil))
 		c.Dump(lw, 0)
 		lw.Write(w.Bytes())
@@ -289,7 +354,11 @@ func (y *YamlParser) Get(path string) *YamlNode {
 	if ok {
 		return n
 	}
-	return &YamlNode{}
+	return nil
+}
+
+func (y *YamlParser) All() map[string]*YamlNode {
+	return y.kvs
 }
 
 func GenStdRegexp(pattern string) string {

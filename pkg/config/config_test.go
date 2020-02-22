@@ -61,7 +61,7 @@ func TestConfigFlag(t *testing.T) {
 
 func TestConfigJson(t *testing.T) {
 	// default config path is "./config.json"
-	cfg.LoadCfg("./test.json")
+	cfg.LoadJsonCfg("./test.json")
 	assert.Equal(t, "./test.json", cfg.String("config"))
 	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, cfg.IntArray("int_arr"))
 	assert.Equal(t, []float64{0.1, 0.2, 0.3}, cfg.FloatArray("float_arr"))
@@ -71,7 +71,7 @@ func TestConfigJson(t *testing.T) {
 
 func BenchmarkConfigJson(b *testing.B) {
 	// default config path is "./config.json"
-	cfg.LoadCfg("./test.json")
+	cfg.LoadJsonCfg("./test.json")
 	for i := 0; i < b.N; i++ {
 		assert.Equal(b, []float64{0.1, 0.2, 0.3}, cfg.FloatArray("float_arr"))
 	}
@@ -84,7 +84,7 @@ func TestConfigEnv(t *testing.T) {
 }
 
 func TestConfig_Match(t *testing.T) {
-	cfg.LoadCfg("./test.json")
+	cfg.LoadJsonCfg("./test.json")
 	pattern := `match.sub_[a-z]*.[a-z]a[a-z]`
 	assert.Equal(t, map[string]int{
 		"match.sub_match.cab": 3,
@@ -108,12 +108,12 @@ func TestConfig_Match(t *testing.T) {
 
 func TestConfig_Dump(t *testing.T) {
 	if false {
-		cfg.LoadCfg("./test.json")
+		cfg.LoadJsonCfg("./test.json")
 		peerName := "NewPeer"
 		cfg.Set("peer_name", &peerName)
 		assert.Equal(t, nil, cfg.Dump())
 		// Check new config
-		cfg.LoadCfg()
+		cfg.LoadJsonCfg()
 		assert.Equal(t, peerName, cfg.String("peer_name"))
 	}
 }

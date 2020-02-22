@@ -260,9 +260,11 @@ func (e *Element) StrMap() map[string]string {
 }
 
 type Config struct {
-	cfgKV   map[string]*Element
-	jsonStr string
-	cfgPath string
+	cfgKV      map[string]*Element
+	jsonStr    string
+	yamlStr    string
+	yamlParser *YamlParser
+	cfgPath    string
 }
 
 func (c *Config) CfgString() string {
@@ -352,9 +354,9 @@ func (c *Config) readCfg(path string, res gjson.Result, pre *Element) *Element {
 	return e
 }
 
-func (c *Config) LoadCfg(path ...string) error {
+func (c *Config) LoadJsonCfg(path ...string) error {
 	cfgPath := ""
-	v, ok := flagKV["config"]
+	v, ok := flagKV["json-config"]
 	switch {
 	case len(path) > 0:
 		cfgPath = path[0]
@@ -383,6 +385,22 @@ func (c *Config) LoadCfg(path ...string) error {
 		c.cfgKV[k] = c.readCfg(k, gjson.Get(c.jsonStr, k), nil)
 	}
 	return nil
+}
+
+func (c *Config) LoadYamlCfg(ident int, path ...string) error {
+	cfgPath := ""
+	v, ok := flagKV["yaml-config"]
+	switch {
+	case len(path) > 0:
+		cfgPath = path[0]
+	case ok && v != nil:
+		cfgPath = v.String()
+	default:
+		cfgPath = "./config.yaml"
+	}
+	c.yamlParser = NewYamlParser(ident)
+	err := c.yamlParser.Parse(cfgPath)
+	return err
 }
 
 // Ele search level flag>config>env
@@ -549,7 +567,7 @@ func (c *Config) Match(pattern string) *Element {
 
 // Global config
 func LoadCfg(path ...string) error {
-	return defaultCfg.LoadCfg(path...)
+	return defaultCfg.LoadJsonCfg(path...)
 }
 
 // Ele search level flag>config>env
