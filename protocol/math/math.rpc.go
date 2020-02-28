@@ -9,7 +9,47 @@ import (
 
 	"x.io/xrpc"
 	"x.io/xrpc/pkg/codes"
+	"x.io/xrpc/types"
 )
+
+// CounterClient is the client API for Counter service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
+type CounterClient interface {
+	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
+	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
+}
+
+type counterClient struct {
+	cc   *xrpc.ClientConn
+	opts []xrpc.CallOption
+}
+
+func NewCounterClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) CounterClient {
+	return &counterClient{cc, opts}
+}
+
+func (c *counterClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1, &out_2)
+	err := c.cc.Invoke(ctx, "/math.Counter/Inc", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1, out_2
+	}
+	return out_1, out_2
+}
+
+func (c *counterClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Counter/Dec", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
 
 // MathClient is the client API for Math service.
 //
@@ -110,45 +150,6 @@ func (c *mathClient) Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 fl
 	return out_1, out_2
 }
 
-// CounterClient is the client API for Counter service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
-type CounterClient interface {
-	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
-	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
-}
-
-type counterClient struct {
-	cc   *xrpc.ClientConn
-	opts []xrpc.CallOption
-}
-
-func NewCounterClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) CounterClient {
-	return &counterClient{cc, opts}
-}
-
-func (c *counterClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1, &out_2)
-	err := c.cc.Invoke(ctx, "/math.Counter/Inc", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1, out_2
-	}
-	return out_1, out_2
-}
-
-func (c *counterClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Counter/Dec", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
 // UnimplementedCounter can be embedded to have forward compatible implementations.
 type UnimplementedCounter struct {
 }
@@ -165,7 +166,7 @@ func RegisterCounterServer(s *xrpc.Server, srv Counter) {
 	s.RegisterService(&_Counter_serviceDesc, srv)
 }
 
-func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 = new(Num)
@@ -184,7 +185,7 @@ func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interfa
 		results = append(results, out_1, out_2)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Counter/Inc",
 	}
@@ -197,7 +198,7 @@ func _Counter_Inc_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 Num
@@ -215,7 +216,7 @@ func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interfa
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Counter/Dec",
 	}
@@ -228,10 +229,10 @@ func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, ins, info, handler)
 }
 
-var _Counter_serviceDesc = xrpc.ServiceDesc{
+var _Counter_serviceDesc = types.ServiceDesc{
 	ServiceName: "math.Counter",
 	HandlerType: (*Counter)(nil),
-	Methods: []xrpc.MethodDesc{
+	Methods: []types.MethodDesc{
 		{
 			MethodName: "Inc",
 			Handler:    _Counter_Inc_Handler,
@@ -241,7 +242,7 @@ var _Counter_serviceDesc = xrpc.ServiceDesc{
 			Handler:    _Counter_Dec_Handler,
 		},
 	},
-	Streams:  []xrpc.StreamDesc{},
+	Streams:  []types.StreamDesc{},
 	Metadata: "math",
 }
 
@@ -281,7 +282,7 @@ func RegisterMathServer(s *xrpc.Server, srv Math) {
 	s.RegisterService(&_Math_serviceDesc, srv)
 }
 
-func _Math_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 = new(Num)
@@ -300,7 +301,7 @@ func _Math_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{
 		results = append(results, out_1, out_2)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/Inc",
 	}
@@ -313,7 +314,7 @@ func _Math_Inc_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 Num
@@ -331,7 +332,7 @@ func _Math_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/Dec",
 	}
@@ -344,7 +345,7 @@ func _Math_Dec_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_XRpcAdd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_XRpcAdd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		xctx = xrpc.XBackground()
@@ -365,7 +366,7 @@ func _Math_XRpcAdd_Handler(srv interface{}, ctx context.Context, dec func(interf
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/XRpcAdd",
 	}
@@ -378,7 +379,7 @@ func _Math_XRpcAdd_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_XRpcDouble_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_XRpcDouble_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		xctx = xrpc.XBackground()
@@ -398,7 +399,7 @@ func _Math_XRpcDouble_Handler(srv interface{}, ctx context.Context, dec func(int
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/XRpcDouble",
 	}
@@ -411,7 +412,7 @@ func _Math_XRpcDouble_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 int
@@ -430,7 +431,7 @@ func _Math_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/Add",
 	}
@@ -443,7 +444,7 @@ func _Math_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_Double_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_Double_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 int
@@ -461,7 +462,7 @@ func _Math_Double_Handler(srv interface{}, ctx context.Context, dec func(interfa
 		results = append(results, out_1)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/Double",
 	}
@@ -474,7 +475,7 @@ func _Math_Double_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, ins, info, handler)
 }
 
-func _Math_Calc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Math_Calc_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	var ins []interface{}
 	var (
 		in_1 []int
@@ -493,7 +494,7 @@ func _Math_Calc_Handler(srv interface{}, ctx context.Context, dec func(interface
 		results = append(results, out_1, out_2)
 		return results, nil
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/math.Math/Calc",
 	}
@@ -506,10 +507,10 @@ func _Math_Calc_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, ins, info, handler)
 }
 
-var _Math_serviceDesc = xrpc.ServiceDesc{
+var _Math_serviceDesc = types.ServiceDesc{
 	ServiceName: "math.Math",
 	HandlerType: (*Math)(nil),
-	Methods: []xrpc.MethodDesc{
+	Methods: []types.MethodDesc{
 		{
 			MethodName: "Inc",
 			Handler:    _Math_Inc_Handler,
@@ -539,6 +540,6 @@ var _Math_serviceDesc = xrpc.ServiceDesc{
 			Handler:    _Math_Calc_Handler,
 		},
 	},
-	Streams:  []xrpc.StreamDesc{},
+	Streams:  []types.StreamDesc{},
 	Metadata: "math",
 }

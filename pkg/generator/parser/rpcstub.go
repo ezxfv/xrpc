@@ -10,6 +10,7 @@ import (
 var (
 	contextPkg = "context"
 	xrpcPkg    = "xrpc"
+	typesPkg   = "types"
 )
 
 type StubBuilder interface {
@@ -335,7 +336,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 		for _, method := range service.AllMethods() {
 			methName := method.Name
 			hname := fmt.Sprintf("_%s_%s_Handler", servName, methName)
-			x.P("func ", hname, "(srv interface{}, ctx ", contextPkg, ".Context, dec func(interface{}) error, interceptor ", xrpcPkg, ".UnaryServerInterceptor) (interface{}, error) {")
+			x.P("func ", hname, "(srv interface{}, ctx ", contextPkg, ".Context, dec func(interface{}) error, interceptor ", typesPkg, ".UnaryServerInterceptor) (interface{}, error) {")
 			ins, outs := genServerVars(method, x)
 			if len(ins) > 0 {
 				x.P("if err := dec(&ins); err != nil { return nil, err }")
@@ -351,7 +352,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 				x.P("return nil, nil")
 			}
 			x.P("}")
-			x.P("info := &", xrpcPkg, ".UnaryServerInfo{")
+			x.P("info := &", typesPkg, ".UnaryServerInfo{")
 			x.P("Server: srv,")
 			x.P("FullMethod: ", strconv.Quote(fmt.Sprintf("/%s/%s", fullServName, methName)), ",")
 			x.P("}")
@@ -372,10 +373,10 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 			handlerNames = append(handlerNames, hname)
 		}
 		// Service descriptor.
-		x.P("var ", serviceDescVar, " = ", xrpcPkg, ".ServiceDesc {")
+		x.P("var ", serviceDescVar, " = ", typesPkg, ".ServiceDesc {")
 		x.P("ServiceName: ", strconv.Quote(fullServName), ",")
 		x.P("HandlerType: (*", servName, ")(nil),")
-		x.P("Methods: []", xrpcPkg, ".MethodDesc{")
+		x.P("Methods: []", typesPkg, ".MethodDesc{")
 		for i, method := range service.AllMethods() {
 			x.P("{")
 			x.P("MethodName: ", strconv.Quote(method.Name), ",")
@@ -383,7 +384,7 @@ func (b *xrpcStubBuilder) ServerStub(meta *MetaData, x *Generator) error {
 			x.P("},")
 		}
 		x.P("},")
-		x.P("Streams: []", xrpcPkg, ".StreamDesc{},")
+		x.P("Streams: []", typesPkg, ".StreamDesc{},")
 		x.P("Metadata: \"", meta.Name(), "\",")
 		x.P("}")
 		x.P()
