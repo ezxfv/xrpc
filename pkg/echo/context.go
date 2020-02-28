@@ -21,6 +21,11 @@ import (
 )
 
 type Context interface {
+	// Next call the next middleware or the final handler
+	Next() error
+
+	// StatusCode returns the status code
+	StatusCode() int
 
 	// Request returns `*http.Request`.
 	Request() *http.Request
@@ -206,7 +211,25 @@ type context struct {
 	query      url.Values
 	echo       *Echo
 	logger     log.Logger
+	code       int
 	lock       sync.RWMutex
+
+	mindex  int
+	ms      []Handler
+	handler Handler
+}
+
+func (c *context) StatusCode() int {
+	return c.code
+}
+
+func (c *context) Next() (err error) {
+	if c.mindex < len(c.ms) {
+		c.mindex++
+		err = c.ms[c.mindex-1](c)
+		return
+	}
+	return c.handler(c)
 }
 
 func (c *context) Validate(i interface{}) error {
@@ -232,6 +255,11 @@ func (c *context) writeContentType(value string) {
 	if header.Get(HeaderContentType) == "" {
 		header.Set(HeaderContentType, value)
 	}
+}
+
+func (c *context) setStatus(code int) {
+	c.code = code
+	c.response.WriteHeader(code)
 }
 
 func (c *context) Request() *http.Request {
@@ -441,7 +469,7 @@ func (c *context) jsonPBlob(code int, callback string, i interface{}) (err error
 		enc.SetIndent("", "  ")
 	}
 	c.writeContentType(MIMEApplicationJavaScriptCharsetUTF8)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	if _, err = c.response.Write([]byte(callback + "(")); err != nil {
 		return
 	}
@@ -460,7 +488,7 @@ func (c *context) json(code int, i interface{}, indent string) error {
 		enc.SetIndent("", indent)
 	}
 	c.writeContentType(MIMEApplicationJSONCharsetUTF8)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	return enc.Encode(i)
 }
 
@@ -486,7 +514,7 @@ func (c *context) JSONP(code int, callback string, i interface{}) (err error) {
 
 func (c *context) JSONPBlob(code int, callback string, b []byte) (err error) {
 	c.writeContentType(MIMEApplicationJavaScriptCharsetUTF8)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	if _, err = c.response.Write([]byte(callback + "(")); err != nil {
 		return
 	}
@@ -499,7 +527,7 @@ func (c *context) JSONPBlob(code int, callback string, b []byte) (err error) {
 
 func (c *context) xml(code int, i interface{}, indent string) (err error) {
 	c.writeContentType(MIMEApplicationXMLCharsetUTF8)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	enc := xml.NewEncoder(c.response)
 	if indent != "" {
 		enc.Indent("", indent)
@@ -524,7 +552,7 @@ func (c *context) XMLPretty(code int, i interface{}, indent string) (err error) 
 
 func (c *context) XMLBlob(code int, b []byte) (err error) {
 	c.writeContentType(MIMEApplicationXMLCharsetUTF8)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	if _, err = c.response.Write([]byte(xml.Header)); err != nil {
 		return
 	}
@@ -534,14 +562,14 @@ func (c *context) XMLBlob(code int, b []byte) (err error) {
 
 func (c *context) Blob(code int, contentType string, b []byte) (err error) {
 	c.writeContentType(contentType)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	_, err = c.response.Write(b)
 	return
 }
 
 func (c *context) Stream(code int, contentType string, r io.Reader) (err error) {
 	c.writeContentType(contentType)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	_, err = io.Copy(c.response, r)
 	return
 }
@@ -583,7 +611,7 @@ func (c *context) contentDisposition(file, name, dispositionType string) error {
 }
 
 func (c *context) NoContent(code int) error {
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	return nil
 }
 
@@ -591,8 +619,9 @@ func (c *context) Redirect(code int, url string) error {
 	if code < 300 || code > 308 {
 		return ErrInvalidRedirectCode
 	}
+
 	c.response.Header().Set(HeaderLocation, url)
-	c.response.WriteHeader(code)
+	c.setStatus(code)
 	return nil
 }
 

@@ -27,6 +27,7 @@ package main
 
 import (
 	"net/http"
+    "runtime"
 
 	"x.io/xrpc/pkg/echo"
 	"x.io/xrpc/protocol/imdb"
@@ -51,11 +52,19 @@ func Hello(ctx echo.Context) error {
 }
 
 func main() {
-	e := echo.New()
-	imdb.RegisterImdbServer("/imdb", e, &ImdbImpl{})
-	g := e.Group("/test")
-	g.GET("/hello", Hello)
-	e.Server(":8080")
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+    e := echo.New()
+    e.Debug = true
+    e.Cache(true)
+    e.Use(echo.Recovery())
+    e.EnableListRoutes()
+
+    imdb.RegisterImdbServer("/imdb", e, &ImdbImpl{})
+    g := e.Group("/test")
+    g.GET("/hello", Hello)
+
+    e.ListenAndServe(":8080")
 }
 
 ```

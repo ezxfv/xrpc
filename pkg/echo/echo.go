@@ -5,8 +5,14 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
+	"time"
+
+	"github.com/patrickmn/go-cache"
 
 	"x.io/xrpc/pkg/log"
+
+	_ "github.com/patrickmn/go-cache"
 )
 
 var (
@@ -60,6 +66,12 @@ type (
 		services map[string]*service
 		trees    map[HttpMethod]*Tree
 		render   Renderer
+		ms       []Handler
+		routes   []string
+
+		enableCache      bool
+		routeCache       *cache.Cache
+		cacheExpiredTime time.Duration
 
 		Listener         net.Listener
 		Debug            bool
@@ -72,6 +84,19 @@ type (
 		r      Router
 	}
 )
+
+func New() *Echo {
+	e := &Echo{
+		services:         map[string]*service{},
+		trees:            map[HttpMethod]*Tree{},
+		routeCache:       cache.New(time.Second*10, time.Minute),
+		cacheExpiredTime: time.Second * 5,
+	}
+	for _, m := range SupportedMethods {
+		e.trees[m] = NewRadixTree()
+	}
+	return e
+}
 
 func (g *Group) GET(path string, handler Handler) {
 	path = g.prefix + path
@@ -117,53 +142,69 @@ func (g *Group) TRACE(path string, handler Handler) {
 	g.r.TRACE(path, handler)
 }
 
+func (e *Echo) Cache(enable bool) {
+	e.enableCache = enable
+}
+
 func (e *Echo) GET(path string, handler Handler) {
-	e.trees[GET].Insert(path, handler)
+	e.addRoute(GET, path, handler)
 }
 
 func (e *Echo) POST(path string, handler Handler) {
-	e.trees[POST].Insert(path, handler)
+	e.addRoute(POST, path, handler)
 }
 
 func (e *Echo) DELETE(path string, handler Handler) {
-	e.trees[DELETE].Insert(path, handler)
+	e.addRoute(DELETE, path, handler)
 }
 
 func (e *Echo) PUT(path string, handler Handler) {
-	e.trees[PUT].Insert(path, handler)
+	e.addRoute(PUT, path, handler)
 }
 
 func (e *Echo) CONNECT(path string, handler Handler) {
-	e.trees[CONNECT].Insert(path, handler)
+	e.addRoute(CONNECT, path, handler)
 }
 
 func (e *Echo) HEAD(path string, handler Handler) {
-	e.trees[HEAD].Insert(path, handler)
+	e.addRoute(HEAD, path, handler)
 }
 
 func (e *Echo) OPTIONS(path string, handler Handler) {
-	e.trees[OPTIONS].Insert(path, handler)
+	e.addRoute(OPTIONS, path, handler)
 }
 
 func (e *Echo) PATCH(path string, handler Handler) {
-	e.trees[PATCH].Insert(path, handler)
+	e.addRoute(PATCH, path, handler)
 }
 
 func (e *Echo) TRACE(path string, handler Handler) {
-	e.trees[TRACE].Insert(path, handler)
+	e.addRoute(TRACE, path, handler)
 }
 
-func New() *Echo {
-	e := &Echo{
-		services: map[string]*service{},
-		trees:    map[HttpMethod]*Tree{},
+func (e *Echo) addRoute(method HttpMethod, path string, handler Handler) {
+	if t, ok := e.trees[method]; ok {
+		_, ok = t.Insert(path, handler)
+		if !ok {
+			e.routes = append(e.routes, path)
+		}
 	}
-	for _, m := range SupportedMethods {
-		e.trees[m] = NewRadixTree()
-	}
-	return e
 }
 
+func (e *Echo) Use(ms ...Handler) {
+	e.ms = append(e.ms, ms...)
+}
+
+func (e *Echo) GetRoutes() []string {
+	return e.routes
+}
+
+func (e *Echo) EnableListRoutes() {
+	e.GET("/routes", func(c Context) error {
+		s := strings.Join(e.GetRoutes(), "\n")
+		return c.String(http.StatusOK, s)
+	})
+}
 func (e *Echo) Start(addr string) error {
 	e.addr = addr
 	fmt.Printf(banner, Version, addr)
@@ -183,25 +224,63 @@ func (e *Echo) ListenAndServe(addr string) error {
 	return err
 }
 
+type routeCache struct {
+	v    Handler
+	args map[string]string
+}
+
 func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	path := r.URL.Path
-	ctx := &context{
+	c := &context{
 		request:  r,
 		response: w,
 		values:   map[string]interface{}{},
 	}
+	if e.enableCache {
+		t := time.Now()
+		rc, ok := e.routeCache.Get(path)
+
+		if ok {
+			rcc, ok := rc.(*routeCache)
+			if ok {
+				if e.Debug {
+					log.Debugf("read cache %s in %dns [%v]", c.Request().RequestURI, time.Since(t).Nanoseconds(), ok)
+				}
+				c.ms = e.ms
+				c.pathParams = rcc.args
+				c.handler = rcc.v
+				c.Next()
+				return
+			}
+		}
+	}
+
 	if _, ok := e.trees[method]; !ok {
-		ctx.String(http.StatusMethodNotAllowed, "unsupported "+method)
+		c.String(http.StatusMethodNotAllowed, "unsupported "+method)
 		return
 	}
+	t := time.Now()
 	v, ok, args := e.trees[method].Get(path)
+	if e.Debug {
+		log.Debugf("route %s in %dns [%v]", c.Request().RequestURI, time.Since(t).Nanoseconds(), ok)
+	}
 	if !ok {
-		ctx.String(http.StatusNotFound, "can't find page: "+path)
+		c.String(http.StatusNotFound, "can't find page: "+path)
 		return
 	}
-	ctx.pathParams = args
-	v.(Handler)(ctx)
+
+	c.ms = e.ms
+	c.pathParams = args
+	c.handler = v.(Handler)
+	if e.enableCache {
+		rc := &routeCache{
+			v:    c.handler,
+			args: args,
+		}
+		e.routeCache.Set(path, rc, e.cacheExpiredTime)
+	}
+	c.Next()
 }
 
 func (e *Echo) RegisterService(sd *ServiceDesc, ss interface{}) error {
@@ -222,7 +301,7 @@ func (e *Echo) RegisterService(sd *ServiceDesc, ss interface{}) error {
 		if _, ok := e.trees[m.HttpMethod]; !ok {
 			continue
 		}
-		e.trees[m.HttpMethod].Insert(m.Path, m.Handler)
+		e.addRoute(m.HttpMethod, m.Path, m.Handler)
 	}
 	return nil
 }

@@ -32,6 +32,12 @@ func Hello(ctx echo.Context) error {
 func TestEcho(t *testing.T) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	e := echo.New()
+	e.Debug = true
+	e.Cache(true)
+
+	e.Use(echo.Recovery())
+	e.EnableListRoutes()
+
 	imdb.RegisterImdbServer("/imdb", e, &ImdbImpl{})
 	g := e.Group("/test")
 	g.GET("/hello", Hello)
@@ -41,6 +47,6 @@ func TestEcho(t *testing.T) {
 
 func BenchmarkEcho_GET(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		http.Get("http://localhost:8080/test/hello")
+		http.Get("http://localhost:8080/imdb/findfilm/x/price/dollar")
 	}
 }

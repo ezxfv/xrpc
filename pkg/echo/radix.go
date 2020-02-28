@@ -3,10 +3,12 @@ package echo
 import (
 	"sort"
 	"strings"
+	"sync/atomic"
 )
 
 const (
 	colon uint8 = 58 // :
+	star  uint8 = 42 // *
 )
 
 // WalkFn is used when walking the tree. Takes a
@@ -37,6 +39,8 @@ type node struct {
 	// We avoid a fully materialized slice to save memory,
 	// since in most cases we expect to be sparse
 	edges edges
+
+	cnt uint64
 }
 
 func (n *node) isLeaf() bool {
@@ -348,6 +352,10 @@ func (n *node) mergeChild() {
 	n.edges = child.edges
 }
 
+func (t Tree) sortEdges() {
+	// TODO sort edges by cnt
+}
+
 // GET is used to lookup a specific key, returning
 // the value and if it was found
 func (t *Tree) Get(s string) (v interface{}, ok bool, params map[string]string) {
@@ -368,24 +376,47 @@ func (t *Tree) Get(s string) (v interface{}, ok bool, params map[string]string) 
 		if n == nil {
 			break
 		}
+		atomic.AddUint64(&n.cnt, 1)
 
 		// Consume the search prefix
 		if strings.HasPrefix(search, n.prefix) {
 			search = search[len(n.prefix):]
 			continue
 		}
-		i := strings.Index(n.prefix, ":")
-		if i < 0 {
+		prefix := strings.Trim(n.prefix, "/")
+		ss := strings.Trim(search, "/")
+		pArr := strings.Split(prefix, "/")
+		sArr := strings.Split(ss, "/")
+		if len(sArr) < len(pArr) {
 			break
 		}
-		param := n.prefix[i+1:]
-		search = search[i:]
-		index := strings.Index(search, "/")
-		if index > 0 && index+1 < len(search) {
-			params[param] = search[:index]
+		index := 0
+		i := 0
+		for i = 0; i < len(pArr); i++ {
+			if pArr[i] == sArr[i] {
+				index += len(sArr[i]) + 1
+				continue
+			}
+			switch pArr[i][0] {
+			case colon:
+				index += len(sArr[i]) + 1
+				params[pArr[i][1:]] = sArr[i]
+			case star:
+				params[pArr[i][1:]] = search[index:]
+				search = ""
+			default:
+				break
+			}
+		}
+		if i != len(pArr) {
+			break
+		}
+		if index < len(search) {
+			if !strings.HasSuffix(n.prefix, "/") {
+				index--
+			}
 			search = search[index:]
 		} else {
-			params[param] = search
 			search = ""
 		}
 	}
