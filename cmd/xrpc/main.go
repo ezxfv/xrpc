@@ -16,12 +16,12 @@ var (
 func parseIdl(file string) error {
 	meta := parser.NewMetaData()
 	meta.Parse(file)
-	stub := strings.ReplaceAll(file, ".go", ".stub.go")
+	stub := strings.ReplaceAll(file, ".go", ".rpcstub.go")
 	f, err := os.Create(stub)
 	if err != nil {
 		return err
 	}
-	return meta.Print(parser.NewXrpcStubBuilder(), f)
+	return parser.RpcStub(meta, parser.NewXrpcStubBuilder(), f)
 }
 
 func main() {

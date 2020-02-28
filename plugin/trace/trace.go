@@ -8,6 +8,7 @@ import (
 
 	"x.io/xrpc"
 	"x.io/xrpc/pkg/codes"
+	"x.io/xrpc/types"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -41,7 +42,7 @@ type tracePlugin struct {
 	otgrpcOpts *options
 }
 
-func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc.UnaryServerInfo) (context.Context, error) {
+func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo) (context.Context, error) {
 	spanContext, err := t.tracer.Extract(opentracing.TextMap, NewSpanCtxReader(ctx))
 	var span opentracing.Span
 	if err != nil {
@@ -76,7 +77,7 @@ func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *xrpc
 	return ctx, nil
 }
 
-func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *xrpc.UnaryServerInfo, err error) (context.Context, error) {
+func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, err error) (context.Context, error) {
 	serverSpan, ok := ctx.Value(SpanKey).(opentracing.Span)
 	if !ok {
 		return ctx, errors.New("trace plugin get server_span failed")

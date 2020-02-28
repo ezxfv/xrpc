@@ -11,6 +11,7 @@ import (
 	"x.io/xrpc/pkg/net"
 	"x.io/xrpc/plugin"
 	_ "x.io/xrpc/plugin/chord"
+	"x.io/xrpc/types"
 
 	"github.com/xtaci/smux"
 )
@@ -20,7 +21,7 @@ type ClientConn struct {
 	protocol    net.Network
 	session     *smux.Session
 	conn        net.Conn
-	streamCache map[string]ClientStream
+	streamCache map[string]types.ClientStream
 
 	args map[string]interface{}
 	pioc plugin.Container
@@ -58,7 +59,7 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 		protocol:    network,
 		session:     session,
 		conn:        conn,
-		streamCache: map[string]ClientStream{},
+		streamCache: map[string]types.ClientStream{},
 		args:        map[string]interface{}{},
 		pioc:        plugin.NewPluginContainer(),
 	}
@@ -124,7 +125,7 @@ func genStreamKey(network net.Network, addr string, method string) string {
 	return fmt.Sprintf("%s://%s%s", network, addr, method)
 }
 
-func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *StreamDesc, method string, opts ...CallOption) (cs ClientStream, err error) {
+func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *types.StreamDesc, method string, opts ...CallOption) (cs types.ClientStream, err error) {
 	var stream net.Conn
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)

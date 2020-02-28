@@ -2,14 +2,12 @@ package logp
 
 import (
 	"context"
-	"net/http"
 	"os"
+
+	"x.io/xrpc/types"
 
 	"x.io/xrpc/pkg/log"
 	"x.io/xrpc/pkg/net"
-
-	echo "github.com/labstack/echo/v4"
-	"google.golang.org/grpc"
 )
 
 func New() *logPlugin {
@@ -36,14 +34,7 @@ func (p *logPlugin) Stop() error {
 	return nil
 }
 
-func (p *logPlugin) RegisterAPI(e *echo.Echo) {
-	g := e.Group("log")
-	g.GET("", func(c echo.Context) error {
-		return c.String(http.StatusOK, "log plugin api")
-	})
-}
-
-func (p *logPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
+func (p *logPlugin) RegisterService(sd *types.ServiceDesc, ss interface{}) error {
 	var methods []string
 	for _, m := range sd.Methods {
 		methods = append(methods, m.MethodName)
@@ -52,7 +43,7 @@ func (p *logPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error 
 	return nil
 }
 
-func (p *logPlugin) RegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error {
+func (p *logPlugin) RegisterCustomService(sd *types.ServiceDesc, ss interface{}, metadata string) error {
 	var methods []string
 	for _, m := range sd.Methods {
 		methods = append(methods, m.MethodName)
@@ -96,12 +87,12 @@ func (p *logPlugin) PostReadRequest(ctx context.Context, r interface{}, e error)
 	return nil
 }
 
-func (p *logPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
+func (p *logPlugin) PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error) {
 	p.l.Debugf("PreHandle\n")
 	return ctx, nil
 }
 
-func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error) {
+func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error) {
 	p.l.Debugf("PostHandle\n")
 	return ctx, nil
 }

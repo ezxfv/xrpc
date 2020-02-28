@@ -12,144 +12,6 @@ import (
 	"x.io/xrpc/types"
 )
 
-// CounterClient is the client API for Counter service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
-type CounterClient interface {
-	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
-	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
-}
-
-type counterClient struct {
-	cc   *xrpc.ClientConn
-	opts []xrpc.CallOption
-}
-
-func NewCounterClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) CounterClient {
-	return &counterClient{cc, opts}
-}
-
-func (c *counterClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1, &out_2)
-	err := c.cc.Invoke(ctx, "/math.Counter/Inc", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1, out_2
-	}
-	return out_1, out_2
-}
-
-func (c *counterClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Counter/Dec", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-// MathClient is the client API for Math service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
-type MathClient interface {
-	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
-	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
-	XRpcAdd(ctx context.Context, in_1, in_2 int) (out_1 int)
-	XRpcDouble(ctx context.Context, in_1 int) (out_1 int)
-	Add(ctx context.Context, in_1, in_2 int) (out_1 int)
-	Double(ctx context.Context, in_1 int) (out_1 int)
-	Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 float64)
-}
-
-type mathClient struct {
-	cc   *xrpc.ClientConn
-	opts []xrpc.CallOption
-}
-
-func NewMathClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) MathClient {
-	return &mathClient{cc, opts}
-}
-
-func (c *mathClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1, &out_2)
-	err := c.cc.Invoke(ctx, "/math.Math/Inc", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1, out_2
-	}
-	return out_1, out_2
-}
-
-func (c *mathClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Math/Dec", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-func (c *mathClient) XRpcAdd(ctx context.Context, in_1, in_2 int) (out_1 int) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1, in_2)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Math/XRpcAdd", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-func (c *mathClient) XRpcDouble(ctx context.Context, in_1 int) (out_1 int) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Math/XRpcDouble", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-func (c *mathClient) Add(ctx context.Context, in_1, in_2 int) (out_1 int) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1, in_2)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Math/Add", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-func (c *mathClient) Double(ctx context.Context, in_1 int) (out_1 int) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1)
-	err := c.cc.Invoke(ctx, "/math.Math/Double", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1
-	}
-	return out_1
-}
-
-func (c *mathClient) Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 float64) {
-	var ins, outs []interface{}
-	ins = append(ins, in_1)
-	outs = append(outs, &out_1, &out_2)
-	err := c.cc.Invoke(ctx, "/math.Math/Calc", ins, &outs, c.opts...)
-	if err != nil {
-		return out_1, out_2
-	}
-	return out_1, out_2
-}
-
 // UnimplementedCounter can be embedded to have forward compatible implementations.
 type UnimplementedCounter struct {
 }
@@ -231,7 +93,7 @@ func _Counter_Dec_Handler(srv interface{}, ctx context.Context, dec func(interfa
 
 var _Counter_serviceDesc = types.ServiceDesc{
 	ServiceName: "math.Counter",
-	HandlerType: (*Counter)(nil),
+	HandlerType: (Counter)(nil),
 	Methods: []types.MethodDesc{
 		{
 			MethodName: "Inc",
@@ -509,7 +371,7 @@ func _Math_Calc_Handler(srv interface{}, ctx context.Context, dec func(interface
 
 var _Math_serviceDesc = types.ServiceDesc{
 	ServiceName: "math.Math",
-	HandlerType: (*Math)(nil),
+	HandlerType: (Math)(nil),
 	Methods: []types.MethodDesc{
 		{
 			MethodName: "Inc",
@@ -542,4 +404,142 @@ var _Math_serviceDesc = types.ServiceDesc{
 	},
 	Streams:  []types.StreamDesc{},
 	Metadata: "math",
+}
+
+// CounterClient is the client API for Counter service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
+type CounterClient interface {
+	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
+	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
+}
+
+type counterClient struct {
+	cc   *xrpc.ClientConn
+	opts []xrpc.CallOption
+}
+
+func NewCounterClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) CounterClient {
+	return &counterClient{cc, opts}
+}
+
+func (c *counterClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1, &out_2)
+	err := c.cc.Invoke(ctx, "/math.Counter/Inc", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1, out_2
+	}
+	return out_1, out_2
+}
+
+func (c *counterClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Counter/Dec", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+// MathClient is the client API for Math service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/x.io/xrpc#ClientConn.NewStream.
+type MathClient interface {
+	Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num)
+	Dec(ctx context.Context, in_1 Num) (out_1 *Num)
+	XRpcAdd(ctx context.Context, in_1, in_2 int) (out_1 int)
+	XRpcDouble(ctx context.Context, in_1 int) (out_1 int)
+	Add(ctx context.Context, in_1, in_2 int) (out_1 int)
+	Double(ctx context.Context, in_1 int) (out_1 int)
+	Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 float64)
+}
+
+type mathClient struct {
+	cc   *xrpc.ClientConn
+	opts []xrpc.CallOption
+}
+
+func NewMathClient(cc *xrpc.ClientConn, opts ...xrpc.CallOption) MathClient {
+	return &mathClient{cc, opts}
+}
+
+func (c *mathClient) Inc(ctx context.Context, in_1 *Num) (out_1 int32, out_2 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1, &out_2)
+	err := c.cc.Invoke(ctx, "/math.Math/Inc", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1, out_2
+	}
+	return out_1, out_2
+}
+
+func (c *mathClient) Dec(ctx context.Context, in_1 Num) (out_1 *Num) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Math/Dec", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+func (c *mathClient) XRpcAdd(ctx context.Context, in_1, in_2 int) (out_1 int) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1, in_2)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Math/XRpcAdd", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+func (c *mathClient) XRpcDouble(ctx context.Context, in_1 int) (out_1 int) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Math/XRpcDouble", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+func (c *mathClient) Add(ctx context.Context, in_1, in_2 int) (out_1 int) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1, in_2)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Math/Add", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+func (c *mathClient) Double(ctx context.Context, in_1 int) (out_1 int) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1)
+	err := c.cc.Invoke(ctx, "/math.Math/Double", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1
+	}
+	return out_1
+}
+
+func (c *mathClient) Calc(ctx context.Context, in_1 ...int) (out_1 int, out_2 float64) {
+	var ins, outs []interface{}
+	ins = append(ins, in_1)
+	outs = append(outs, &out_1, &out_2)
+	err := c.cc.Invoke(ctx, "/math.Math/Calc", ins, &outs, c.opts...)
+	if err != nil {
+		return out_1, out_2
+	}
+	return out_1, out_2
 }

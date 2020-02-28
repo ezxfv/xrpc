@@ -11,14 +11,9 @@ import (
 	"x.io/xrpc/pkg/log"
 	"x.io/xrpc/pkg/net"
 	"x.io/xrpc/plugin"
+	"x.io/xrpc/types"
 
 	"github.com/xtaci/smux"
-	"google.golang.org/grpc"
-)
-
-type (
-	UnaryServerInfo        = grpc.UnaryServerInfo
-	UnaryServerInterceptor = grpc.UnaryServerInterceptor
 )
 
 func NewServer() *Server {
@@ -41,8 +36,8 @@ func NewServer() *Server {
 // the methods in this service.
 type service struct {
 	server interface{} // the server for service methods
-	md     map[string]*MethodDesc
-	sd     map[string]*StreamDesc
+	md     map[string]*types.MethodDesc
+	sd     map[string]*types.StreamDesc
 	mdata  interface{}
 }
 
@@ -105,7 +100,7 @@ func (s *Server) Start() {
 	}
 }
 
-func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
+func (s *Server) RegisterService(sd *types.ServiceDesc, ss interface{}) {
 	ht := reflect.TypeOf(sd.HandlerType).Elem()
 	st := reflect.TypeOf(ss)
 	if !st.Implements(ht) {
@@ -114,7 +109,7 @@ func (s *Server) RegisterService(sd *ServiceDesc, ss interface{}) {
 	s.register(sd, ss)
 }
 
-func (s *Server) register(sd *ServiceDesc, ss interface{}) {
+func (s *Server) register(sd *types.ServiceDesc, ss interface{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.serve {
@@ -125,8 +120,8 @@ func (s *Server) register(sd *ServiceDesc, ss interface{}) {
 	}
 	srv := &service{
 		server: ss,
-		md:     make(map[string]*MethodDesc),
-		sd:     make(map[string]*StreamDesc),
+		md:     make(map[string]*types.MethodDesc),
+		sd:     make(map[string]*types.StreamDesc),
 		mdata:  sd.Metadata,
 	}
 	for i := range sd.Methods {
@@ -219,7 +214,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 	s.pc.DoDisconnect(conn)
 }
 
-func (s *Server) processStream(ctx context.Context, stream ServerStream, header *streamHeader) {
+func (s *Server) processStream(ctx context.Context, stream types.ServerStream, header *streamHeader) {
 	defer s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
 	service, method := header.splitMethod()
 	if service == "" || method == "" {

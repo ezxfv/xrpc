@@ -1,15 +1,14 @@
 package trace_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"testing"
 	"time"
 
-	"context"
-
-	"x.io/xrpc"
 	"x.io/xrpc/plugin/trace"
+	"x.io/xrpc/types"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -128,7 +127,7 @@ func TestTracePlugin(t *testing.T) {
 			ctx = context.WithValue(ctx, k, v)
 		}
 
-		info := &xrpc.UnaryServerInfo{FullMethod: "test_trace_plugin"}
+		info := &types.UnaryServerInfo{FullMethod: "test_trace_plugin"}
 		ctx, err := p.PreHandle(ctx, nil, info)
 		time.Sleep(time.Millisecond * 200)
 		p.PostHandle(ctx, nil, nil, info, err)

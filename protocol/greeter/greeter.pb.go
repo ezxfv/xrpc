@@ -12,6 +12,7 @@ import (
 	xrpc "x.io/xrpc"
 	codes "x.io/xrpc/pkg/codes"
 	status "x.io/xrpc/pkg/status"
+	types "x.io/xrpc/types"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -191,7 +192,7 @@ func RegisterGreeterServer(s *xrpc.Server, srv GreeterServer) {
 	s.RegisterService(&_Greeter_serviceDesc, srv)
 }
 
-func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -199,7 +200,7 @@ func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(in
 	if interceptor == nil {
 		return srv.(GreeterServer).SayHello(ctx, in)
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/greeter.Greeter/SayHello",
 	}
@@ -209,7 +210,7 @@ func _Greeter_SayHello_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Greeter_SayHi_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor xrpc.UnaryServerInterceptor) (interface{}, error) {
+func _Greeter_SayHi_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HelloRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -217,7 +218,7 @@ func _Greeter_SayHi_Handler(srv interface{}, ctx context.Context, dec func(inter
 	if interceptor == nil {
 		return srv.(GreeterServer).SayHi(ctx, in)
 	}
-	info := &xrpc.UnaryServerInfo{
+	info := &types.UnaryServerInfo{
 		Server:     srv,
 		FullMethod: "/greeter.Greeter/SayHi",
 	}
@@ -227,10 +228,10 @@ func _Greeter_SayHi_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Greeter_serviceDesc = xrpc.ServiceDesc{
+var _Greeter_serviceDesc = types.ServiceDesc{
 	ServiceName: "greeter.Greeter",
 	HandlerType: (*GreeterServer)(nil),
-	Methods: []xrpc.MethodDesc{
+	Methods: []types.MethodDesc{
 		{
 			MethodName: "SayHello",
 			Handler:    _Greeter_SayHello_Handler,
@@ -240,6 +241,6 @@ var _Greeter_serviceDesc = xrpc.ServiceDesc{
 			Handler:    _Greeter_SayHi_Handler,
 		},
 	},
-	Streams:  []xrpc.StreamDesc{},
+	Streams:  []types.StreamDesc{},
 	Metadata: "greeter.proto",
 }

@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 
 	chord "x.io/xrpc/app/chord/client"
-
-	"google.golang.org/grpc"
+	"x.io/xrpc/types"
 )
 
 func New(srvAddr, chordAddr string) *chordPlugin {
@@ -30,7 +29,7 @@ func (c *chordPlugin) Start() error {
 	return nil
 }
 
-func (c *chordPlugin) register(sd *grpc.ServiceDesc) error {
+func (c *chordPlugin) register(sd *types.ServiceDesc) error {
 	serviceJson, err := c.client.Get(sd.ServiceName)
 	if err != nil {
 		return err
@@ -58,11 +57,11 @@ func (c *chordPlugin) register(sd *grpc.ServiceDesc) error {
 	return c.client.Set(sd.ServiceName, string(newJson))
 }
 
-func (c *chordPlugin) RegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
+func (c *chordPlugin) RegisterService(sd *types.ServiceDesc, ss interface{}) error {
 	return c.register(sd)
 }
 
-func (c *chordPlugin) RegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error {
+func (c *chordPlugin) RegisterCustomService(sd *types.ServiceDesc, ss interface{}, metadata string) error {
 	return c.register(sd)
 }
 

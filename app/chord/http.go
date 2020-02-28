@@ -6,8 +6,7 @@ import (
 
 	"x.io/xrpc/pkg/net"
 
-	echo "github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echo "x.io/xrpc/pkg/echo"
 )
 
 const (
@@ -49,9 +48,6 @@ func (m *mockChord) dump(prefix string) {
 
 func ServerAPI(addr string, mc HttpAPI) error {
 	e := echo.New()
-
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
 
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "chord http api")

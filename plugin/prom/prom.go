@@ -7,9 +7,10 @@ import (
 	"net"
 	"net/http"
 
+	"x.io/xrpc/types"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
 	"x.io/xrpc/pkg/codes"
 )
 
@@ -50,13 +51,13 @@ func (p *promPlugin) Collect(cs ...prometheus.Collector) {
 	}
 }
 
-func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error) {
+func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error) {
 	reporter := newDefaultReporter(p.metrics, "unary", info.FullMethod)
 	ctx = context.WithValue(ctx, "reporter", reporter)
 	return ctx, nil
 }
 
-func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error) {
+func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error) {
 	r, ok := ctx.Value("reporter").(*defaultReporter)
 	if !ok {
 		return ctx, errors.New("prom plugin PostHandle get reporter from ctx failed")

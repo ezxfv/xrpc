@@ -7,7 +7,9 @@ import (
 )
 
 type (
-	PacketConn = net.PacketConn
+	PacketConn   = net.PacketConn
+	TCPListener  = net.TCPListener
+	UnixListener = net.UnixListener
 )
 
 var (

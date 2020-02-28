@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"x.io/xrpc/types"
+
 	"x.io/xrpc/plugin"
 
 	"x.io/xrpc/pkg/encoding"
@@ -28,7 +30,7 @@ type ServiceInfo struct {
 
 type UnaryHandler func(ctx context.Context, req interface{}) (interface{}, error)
 
-type StdHandler func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor UnaryServerInterceptor) (interface{}, error)
+type StdHandler func(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (interface{}, error)
 
 type CustomHandler func(srv interface{}, ctx context.Context)
 
@@ -67,7 +69,7 @@ func Call(f reflect.Value, params ...interface{}) (out []interface{}, err error)
 
 type customService struct {
 	name string
-	desc *ServiceDesc
+	desc *types.ServiceDesc
 	ss   interface{}
 	md   map[string]reflect.Value
 }
@@ -99,7 +101,7 @@ func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{},
 		log.Fatalf("Server.RegisterCustomService found duplicate service registration for %q", serviceName)
 	}
 	serviceName = customPrefix + "." + serviceName
-	desc := &ServiceDesc{
+	desc := &types.ServiceDesc{
 		ServiceName: serviceName,
 		Metadata:    metadata,
 	}
@@ -112,7 +114,7 @@ func (r *CustomServer) RegisterCustomService(serviceName string, ss interface{},
 	for i := 0; i < sv.Type().NumMethod(); i++ {
 		method := sv.Type().Method(i)
 		srv.md[method.Name] = sv.Method(i)
-		desc.Methods = append(desc.Methods, MethodDesc{MethodName: method.Name})
+		desc.Methods = append(desc.Methods, types.MethodDesc{MethodName: method.Name})
 	}
 	r.m[serviceName] = srv
 	md := ""
@@ -145,7 +147,7 @@ func (r *CustomServer) RegisterFunction(serviceName string, fname string, fn int
 	return
 }
 
-func (r *CustomServer) RpcCall(ctx context.Context, service, method string, dec func(interface{}) error, interceptor UnaryServerInterceptor) (reply interface{}, err error) {
+func (r *CustomServer) RpcCall(ctx context.Context, service, method string, dec func(interface{}) error, interceptor types.UnaryServerInterceptor) (reply interface{}, err error) {
 	srv, knownService := r.m[service]
 	if knownService {
 		if md, ok := srv.md[method]; ok {
@@ -168,7 +170,7 @@ func (r *CustomServer) RpcCall(ctx context.Context, service, method string, dec 
 			if interceptor == nil {
 				reply, err = Call(md, ins...)
 			} else {
-				info := &UnaryServerInfo{
+				info := &types.UnaryServerInfo{
 					Server:     srv,
 					FullMethod: fmt.Sprintf("/%s/%s", service, method),
 				}

@@ -1,19 +1,17 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"plugin"
 	"strconv"
 	"sync"
 
-	"context"
-
 	"x.io/xrpc/api"
+	echo "x.io/xrpc/pkg/echo"
 	"x.io/xrpc/pkg/net"
-
-	echo "github.com/labstack/echo/v4"
-	"google.golang.org/grpc"
+	"x.io/xrpc/types"
 )
 
 type Plugin interface{}
@@ -27,8 +25,8 @@ type Container interface {
 	Add(plugin Plugin)
 	Remove(plugin Plugin)
 
-	DoRegisterService(sd *grpc.ServiceDesc, ss interface{}) error
-	DoRegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error
+	DoRegisterService(sd *types.ServiceDesc, ss interface{}) error
+	DoRegisterCustomService(sd *types.ServiceDesc, ss interface{}, metadata string) error
 	DoRegisterFunction(serviceName, fname string, fn interface{}, metadata string) error
 
 	DoConnect(net.Conn) (net.Conn, bool)
@@ -37,7 +35,7 @@ type Container interface {
 	DoOpenStream(ctx context.Context, conn net.Conn) (context.Context, error)
 	DoCloseStream(ctx context.Context, conn net.Conn) (context.Context, error)
 
-	DoHandle(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error)
+	DoHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error)
 
 	IOContainer
 }
@@ -60,11 +58,11 @@ type (
 	}
 
 	RegisterServicePlugin interface {
-		RegisterService(sd *grpc.ServiceDesc, ss interface{}) error
+		RegisterService(sd *types.ServiceDesc, ss interface{}) error
 	}
 
 	RegisterCustomServicePlugin interface {
-		RegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error
+		RegisterCustomService(sd *types.ServiceDesc, ss interface{}, metadata string) error
 	}
 
 	RegisterFunctionPlugin interface {
@@ -100,11 +98,11 @@ type (
 	}
 
 	PreHandlePlugin interface {
-		PreHandle(ctx context.Context, r interface{}, info *grpc.UnaryServerInfo) (context.Context, error)
+		PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error)
 	}
 
 	PostHandlePlugin interface {
-		PostHandle(ctx context.Context, req interface{}, resp interface{}, info *grpc.UnaryServerInfo, e error) (context.Context, error)
+		PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error)
 	}
 
 	PreWriteResponsePlugin interface {
@@ -324,7 +322,7 @@ func (pc *pluginContainer) Remove(plugin Plugin) {
 	}
 }
 
-func (pc *pluginContainer) DoRegisterService(sd *grpc.ServiceDesc, ss interface{}) error {
+func (pc *pluginContainer) DoRegisterService(sd *types.ServiceDesc, ss interface{}) error {
 	var err error
 	for p := range pc.rsp {
 		err = p.RegisterService(sd, ss)
@@ -335,7 +333,7 @@ func (pc *pluginContainer) DoRegisterService(sd *grpc.ServiceDesc, ss interface{
 	return err
 }
 
-func (pc *pluginContainer) DoRegisterCustomService(sd *grpc.ServiceDesc, ss interface{}, metadata string) error {
+func (pc *pluginContainer) DoRegisterCustomService(sd *types.ServiceDesc, ss interface{}, metadata string) error {
 	var err error
 	for p := range pc.rcsp {
 		err = p.RegisterCustomService(sd, ss, metadata)
@@ -423,7 +421,7 @@ func (pc *pluginContainer) DoPostReadRequest(ctx context.Context, r interface{},
 	return err
 }
 
-func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
 	for p := range pc.php {
 		ctx, err = p.PreHandle(ctx, req, info)
 		if err != nil {

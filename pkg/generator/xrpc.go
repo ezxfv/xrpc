@@ -56,6 +56,7 @@ const (
 	xrpcPkgPath    = "x.io/xrpc"
 	statusPkgPath  = "x.io/xrpc/pkg/status"
 	codesPkgPath   = "x.io/xrpc/pkg/codes"
+	typesPkgPath   = "x.io/xrpc/types"
 )
 
 func init() {
@@ -79,6 +80,7 @@ func (x *xrpc) Name() string {
 var (
 	contextPkg string
 	xrpcPkg    string
+	typesPkg   string
 )
 
 // Init initializes the plugin.
@@ -109,6 +111,7 @@ func (x *xrpc) Generate(file *generator.FileDescriptor) {
 
 	contextPkg = string(x.gen.AddImport(contextPkgPath))
 	xrpcPkg = string(x.gen.AddImport(xrpcPkgPath))
+	typesPkg = string(x.gen.AddImport(typesPkgPath))
 
 	x.P("// Reference imports to suppress errors if they are not otherwise used.")
 	x.P("var _ ", contextPkg, ".Context")
@@ -235,7 +238,7 @@ func (x *xrpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 		x.P(deprecationComment)
 	}
 	x.P("func Register", servName, "Server(s *", xrpcPkg, ".Server, srv ", serverType, ") {")
-	x.P("s.RegisterCustomService(&", serviceDescVar, `, srv)`)
+	x.P("s.RegisterService(&", serviceDescVar, `, srv)`)
 	x.P("}")
 	x.P()
 
@@ -247,10 +250,10 @@ func (x *xrpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 	}
 
 	// Service descriptor.
-	x.P("var ", serviceDescVar, " = ", xrpcPkg, ".ServiceDesc {")
+	x.P("var ", serviceDescVar, " = ", typesPkg, ".ServiceDesc {")
 	x.P("ServiceName: ", strconv.Quote(fullServName), ",")
 	x.P("HandlerType: (*", serverType, ")(nil),")
-	x.P("Methods: []", xrpcPkg, ".MethodDesc{")
+	x.P("Methods: []", typesPkg, ".MethodDesc{")
 	for i, method := range service.Method {
 		if method.GetServerStreaming() || method.GetClientStreaming() {
 			continue
@@ -261,7 +264,7 @@ func (x *xrpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 		x.P("},")
 	}
 	x.P("},")
-	x.P("Streams: []", xrpcPkg, ".StreamDesc{")
+	x.P("Streams: []", typesPkg, ".StreamDesc{")
 	for i, method := range service.Method {
 		if !method.GetServerStreaming() && !method.GetClientStreaming() {
 			continue
@@ -376,12 +379,12 @@ func (x *xrpc) generateClientMethod(servName, fullServName, serviceDescVar strin
 	if genCloseAndRecv {
 		x.P("CloseAndRecv() (*", outType, ", error)")
 	}
-	x.P(xrpcPkg, ".ClientStream")
+	x.P(typesPkg, ".ClientStream")
 	x.P("}")
 	x.P()
 
 	x.P("type ", streamType, " struct {")
-	x.P(xrpcPkg, ".ClientStream")
+	x.P(typesPkg, ".ClientStream")
 	x.P("}")
 	x.P()
 
@@ -465,11 +468,11 @@ func (x *xrpc) generateServerMethod(servName, fullServName string, method *pb.Me
 	outType := x.typeName(method.GetOutputType())
 
 	if !method.GetServerStreaming() && !method.GetClientStreaming() {
-		x.P("func ", hname, "(srv interface{}, ctx ", contextPkg, ".Context, dec func(interface{}) error, interceptor ", xrpcPkg, ".UnaryServerInterceptor) (interface{}, error) {")
+		x.P("func ", hname, "(srv interface{}, ctx ", contextPkg, ".Context, dec func(interface{}) error, interceptor ", typesPkg, ".UnaryServerInterceptor) (interface{}, error) {")
 		x.P("in := new(", inType, ")")
 		x.P("if err := dec(in); err != nil { return nil, err }")
 		x.P("if interceptor == nil { return srv.(", servName, "Server).", methName, "(ctx, in) }")
-		x.P("info := &", xrpcPkg, ".UnaryServerInfo{")
+		x.P("info := &", typesPkg, ".UnaryServerInfo{")
 		x.P("Server: srv,")
 		x.P("FullMethod: ", strconv.Quote(fmt.Sprintf("/%s/%s", fullServName, methName)), ",")
 		x.P("}")
@@ -482,7 +485,7 @@ func (x *xrpc) generateServerMethod(servName, fullServName string, method *pb.Me
 		return hname
 	}
 	streamType := unexport(servName) + methName + "Server"
-	x.P("func ", hname, "(srv interface{}, stream ", xrpcPkg, ".ServerStream) error {")
+	x.P("func ", hname, "(srv interface{}, stream ", typesPkg, ".ServerStream) error {")
 	if !method.GetClientStreaming() {
 		x.P("m := new(", inType, ")")
 		x.P("if err := stream.RecvMsg(m); err != nil { return err }")
@@ -508,12 +511,12 @@ func (x *xrpc) generateServerMethod(servName, fullServName string, method *pb.Me
 	if genRecv {
 		x.P("Recv() (*", inType, ", error)")
 	}
-	x.P(xrpcPkg, ".ServerStream")
+	x.P(typesPkg, ".ServerStream")
 	x.P("}")
 	x.P()
 
 	x.P("type ", streamType, " struct {")
-	x.P(xrpcPkg, ".ServerStream")
+	x.P(typesPkg, ".ServerStream")
 	x.P("}")
 	x.P()
 

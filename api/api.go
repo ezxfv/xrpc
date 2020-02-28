@@ -5,8 +5,7 @@ import (
 
 	"x.io/xrpc/pkg/net"
 
-	echo "github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echo "x.io/xrpc/pkg/echo"
 )
 
 var (
@@ -26,10 +25,6 @@ func Register(api APIer) {
 }
 
 func Server(addr string) error {
-	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-
 	// Routes
 	e.GET("/", hello)
 
