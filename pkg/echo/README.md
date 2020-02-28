@@ -27,7 +27,7 @@ package main
 
 import (
 	"net/http"
-    "runtime"
+        "runtime"
 
 	"x.io/xrpc/pkg/echo"
 	"x.io/xrpc/protocol/imdb"
@@ -52,7 +52,7 @@ func Hello(ctx echo.Context) error {
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
+    runtime.GOMAXPROCS(runtime.NumCPU())
 
     e := echo.New()
     e.Debug = true
