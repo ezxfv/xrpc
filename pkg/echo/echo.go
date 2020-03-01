@@ -8,11 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patrickmn/go-cache"
-
 	"x.io/xrpc/pkg/log"
 
-	_ "github.com/patrickmn/go-cache"
+	"github.com/patrickmn/go-cache"
 )
 
 var (
@@ -30,6 +28,7 @@ type (
 		Render(io.Writer, string, interface{}, Context) error
 	}
 	Router interface {
+		HandleFunc(path string, handler Handler)
 		GET(path string, handler Handler)
 		POST(path string, handler Handler)
 		DELETE(path string, handler Handler)
@@ -98,6 +97,10 @@ func New() *Echo {
 	return e
 }
 
+func (g *Group) HandleFunc(path string, handler Handler) {
+	path = g.prefix + path
+	g.r.HandleFunc(path, handler)
+}
 func (g *Group) GET(path string, handler Handler) {
 	path = g.prefix + path
 	g.r.GET(path, handler)
@@ -140,6 +143,12 @@ func (g *Group) PATCH(path string, handler Handler) {
 func (g *Group) TRACE(path string, handler Handler) {
 	path = g.prefix + path
 	g.r.TRACE(path, handler)
+}
+
+func (e *Echo) HandleFunc(path string, handler Handler) {
+	for _, method := range SupportedMethods {
+		e.trees[method].Insert(path, handler)
+	}
 }
 
 func (e *Echo) Cache(enable bool) {
@@ -235,12 +244,12 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := &context{
 		request:  r,
 		response: w,
+		path:     r.RequestURI,
 		values:   map[string]interface{}{},
 	}
 	if e.enableCache {
 		t := time.Now()
 		rc, ok := e.routeCache.Get(path)
-
 		if ok {
 			rcc, ok := rc.(*routeCache)
 			if ok {
@@ -255,21 +264,19 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
+	t := time.Now()
 	if _, ok := e.trees[method]; !ok {
 		c.String(http.StatusMethodNotAllowed, "unsupported "+method)
 		return
 	}
-	t := time.Now()
 	v, ok, args := e.trees[method].Get(path)
 	if e.Debug {
-		log.Debugf("route %s in %dns [%v]", c.Request().RequestURI, time.Since(t).Nanoseconds(), ok)
+		fmt.Printf("route %s in %dns [%v]\n", c.Request().RequestURI, time.Since(t).Nanoseconds(), ok)
 	}
 	if !ok {
 		c.String(http.StatusNotFound, "can't find page: "+path)
 		return
 	}
-
 	c.ms = e.ms
 	c.pathParams = args
 	c.handler = v.(Handler)

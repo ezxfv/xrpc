@@ -1,10 +1,18 @@
 package main
 
 import (
+	"flag"
 	"net/http"
+	"os"
 
 	"x.io/xrpc/pkg/echo"
 	"x.io/xrpc/protocol/imdb"
+)
+
+var (
+	bind     = flag.String("bind", ":8080", "Bind address")
+	rootDir  = flag.String("root", "", "Root folder")
+	usesGzip = flag.Bool("gzip", true, "Enables gzip/zlib compression")
 )
 
 type ImdbImpl struct{}
@@ -26,9 +34,24 @@ func Hello(ctx echo.Context) error {
 }
 
 func main() {
+	flag.Parse()
+	if len(*rootDir) == 0 {
+		*rootDir, _ = os.Getwd()
+	}
+
 	e := echo.New()
+	e.Debug = true
+	e.Use(echo.Logger(), echo.Recovery())
+
 	imdb.RegisterImdbServer("/imdb", e, &ImdbImpl{})
 	g := e.Group("/test")
 	g.GET("/hello", Hello)
-	e.ListenAndServe(":8080")
+
+	g1 := e.Group("/file")
+	g1.GET("/", index)
+	g1.GET("/download", serveFile)
+	g1.GET("/download/*path", serveFile)
+	g1.HandleFunc("/upload", uploadHandler)
+
+	e.ListenAndServe(*bind)
 }

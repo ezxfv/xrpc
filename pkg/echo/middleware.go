@@ -22,11 +22,8 @@ func Recovery() Handler {
 
 func Logger() Handler {
 	return func(c Context) error {
-		// Start timer
 		t := time.Now()
-		// Process request
 		err := c.Next()
-		// Calculate resolution time
 		log.Printf("[%d] %s in %v", c.StatusCode(), c.Request().RequestURI, time.Since(t))
 		return err
 	}
