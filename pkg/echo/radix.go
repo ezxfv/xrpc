@@ -1,14 +1,16 @@
 package echo
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
 )
 
 const (
-	colon uint8 = 58 // :
-	star  uint8 = 42 // *
+	colon     uint8 = 58 // :
+	star      uint8 = 42 // *
+	accolades uint8 = 123
 )
 
 // WalkFn is used when walking the tree. Takes a
@@ -28,6 +30,29 @@ type edge struct {
 	node  *node
 }
 
+func new_node(prefix string, leaf *leafNode) *node {
+	n := &node{
+		leaf:   leaf,
+		prefix: prefix,
+		cnt:    0,
+		re:     map[string]*regexp.Regexp{},
+	}
+	if len(prefix) > 0 {
+		p := `(?U)\{(.*)\}`
+		re := regexp.MustCompile(p)
+		ss := re.FindAllStringSubmatch(prefix, -1)
+		for _, s := range ss {
+			if len(s) == 2 {
+				arr := strings.Split(s[1], ":")
+				name := strings.TrimSpace(arr[0])
+				ps := strings.TrimSpace(arr[1])
+				n.re[name] = regexp.MustCompile(ps)
+			}
+		}
+	}
+	return n
+}
+
 type node struct {
 	// leaf is used to store possible leaf
 	leaf *leafNode
@@ -41,6 +66,7 @@ type node struct {
 	edges edges
 
 	cnt uint64
+	re  map[string]*regexp.Regexp
 }
 
 func (n *node) isLeaf() bool {
@@ -361,7 +387,9 @@ func (t Tree) sortEdges() {
 func (t *Tree) Get(s string) (v interface{}, ok bool, params map[string]string) {
 	n := t.root
 	search := s
+	re := regexp.MustCompile(`\{(.*)\}`)
 	params = map[string]string{}
+outer:
 	for {
 		// Check for key exhaution
 		if len(search) == 0 {
@@ -404,8 +432,25 @@ func (t *Tree) Get(s string) (v interface{}, ok bool, params map[string]string) 
 			case star:
 				params[pArr[i][1:]] = search[index:]
 				search = ""
+			case accolades:
+				ps := re.FindStringSubmatch(pArr[i])
+				if len(ps) != 2 {
+					break outer
+				}
+				arr := strings.Split(ps[1], ":")
+				if len(arr) != 2 {
+					break outer
+				}
+				name := strings.TrimSpace(arr[0])
+				sps := strings.TrimSpace(arr[1])
+				sre := regexp.MustCompile(sps)
+				if !sre.MatchString(sArr[i]) {
+					break outer
+				}
+				index += len(sArr[i]) + 1
+				params[name] = sArr[i]
 			default:
-				break
+				break outer
 			}
 		}
 		if i != len(pArr) {
