@@ -12,6 +12,7 @@ type IPNet = net.IPNet
 
 const (
 	TCP  Network = "tcp"
+	UDP          = "udp"
 	QUIC         = "quic"
 	WS           = "ws"
 	KCP          = "kcp"
@@ -73,10 +74,7 @@ type Listener interface {
 	Addr() Addr
 }
 
-type Conn interface {
-	net.Conn
-	//SupportMux() bool
-}
+type Conn = net.Conn
 
 func Listen(ctx context.Context, protocol Network, addr string) (lis Listener, err error) {
 	if builder, ok := listeners[protocol]; ok {

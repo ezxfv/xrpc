@@ -2,6 +2,9 @@ package net_test
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,6 +58,14 @@ func testConn(t *testing.T, network net.Network) {
 	assert.Equal(t, len(resp), n)
 	assert.Equal(t, resp, d)
 	assert.Equal(t, nil, conn.Close())
+}
+
+func TestUDPListener(t *testing.T) {
+	testLisConn(t, net.UDP)
+}
+
+func TestUDPConn(t *testing.T) {
+	testConn(t, net.UDP)
 }
 
 func TestKCPListener(t *testing.T) {
@@ -132,4 +143,50 @@ func TestReusePort(t *testing.T) {
 	assert.Equal(t, nil, err)
 	_, err = net.Listen(context.Background(), net.QUIC, addr)
 	assert.Equal(t, nil, err)
+}
+
+func TestUDP2(t *testing.T) {
+	go func() {
+		lis, err := net.Listen(context.Background(), "udp", addr)
+		assert.Equal(t, nil, err)
+
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			go func() {
+				for {
+					buf := make([]byte, 11, 11)
+					n, err := conn.Read(buf)
+					if err != nil {
+						log.Fatalln(err.Error())
+					}
+					fmt.Printf("recv %s\n", string(buf[:n]))
+					time.Sleep(time.Second)
+				}
+			}()
+		}
+	}()
+	time.Sleep(time.Second)
+	conn1, err := net.Dial(nil, "udp", addr)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	conn2, err := net.Dial(nil, "udp", addr)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	f := func(p string, conn net.Conn) {
+		for i := 0; i < 10; i++ {
+			conn.Write([]byte(p + " hello"))
+			time.Sleep(time.Second)
+		}
+		wg.Done()
+	}
+	go f("user1", conn1)
+	go f("user2", conn2)
+	wg.Wait()
 }
