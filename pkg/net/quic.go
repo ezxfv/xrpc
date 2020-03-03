@@ -12,8 +12,6 @@ import (
 	"net"
 	"time"
 
-	"x.io/xrpc/pkg/algs"
-
 	quic "github.com/lucas-clemente/quic-go"
 )
 
@@ -103,7 +101,6 @@ type QUICListener struct {
 	listener   quic.Listener
 	addr       Addr
 	maxBufSize int
-	connQueue  *algs.Queue
 }
 
 func (ql *QUICListener) Close() error {
