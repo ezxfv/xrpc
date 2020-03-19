@@ -3,9 +3,8 @@ package api
 import (
 	"net/http"
 
-	"x.io/xrpc/pkg/net"
-
 	echo "x.io/xrpc/pkg/echo"
+	"x.io/xrpc/pkg/net"
 )
 
 var (

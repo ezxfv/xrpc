@@ -145,9 +145,13 @@ func TestReusePort(t *testing.T) {
 	assert.Equal(t, nil, err)
 }
 
-func TestUDP2(t *testing.T) {
+func echoDemo(t *testing.T, protocol string) {
+	raddr := addr
+	if protocol == net.UNIX {
+		raddr = "/tmp/xrpc.sock"
+	}
 	go func() {
-		lis, err := net.Listen(context.Background(), "udp", addr)
+		lis, err := net.Listen(context.Background(), protocol, raddr)
 		assert.Equal(t, nil, err)
 
 		for {
@@ -169,11 +173,11 @@ func TestUDP2(t *testing.T) {
 		}
 	}()
 	time.Sleep(time.Second)
-	conn1, err := net.Dial(nil, "udp", addr)
+	conn1, err := net.Dial(nil, protocol, raddr)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	conn2, err := net.Dial(nil, "udp", addr)
+	conn2, err := net.Dial(nil, protocol, raddr)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -189,4 +193,12 @@ func TestUDP2(t *testing.T) {
 	go f("user1", conn1)
 	go f("user2", conn2)
 	wg.Wait()
+}
+
+func TestUdpEcho(t *testing.T) {
+	echoDemo(t, "udp")
+}
+
+func TestUnixEcho(t *testing.T) {
+	echoDemo(t, "unix")
 }

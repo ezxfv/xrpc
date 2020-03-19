@@ -35,7 +35,7 @@ type Container interface {
 	DoOpenStream(ctx context.Context, conn net.Conn) (context.Context, error)
 	DoCloseStream(ctx context.Context, conn net.Conn) (context.Context, error)
 
-	DoHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error)
+	DoIntercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error)
 
 	IOContainer
 }
@@ -97,12 +97,10 @@ type (
 		PostReadRequest(ctx context.Context, r interface{}, e error) error
 	}
 
-	PreHandlePlugin interface {
-		PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error)
-	}
+	Interceptor func(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error)
 
-	PostHandlePlugin interface {
-		PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error)
+	InterceptPlugin interface {
+		Intercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error)
 	}
 
 	PreWriteResponsePlugin interface {
@@ -123,8 +121,7 @@ type (
 		CloseStreamPlugin
 		PreReadRequestPlugin
 		PostReadRequestPlugin
-		PreHandlePlugin
-		PostHandlePlugin
+		InterceptPlugin
 		PreWriteResponsePlugin
 		PostWriteResponsePlugin
 	}
@@ -142,8 +139,7 @@ func NewPluginContainer() Container {
 		csp:     map[CloseStreamPlugin]bool{},
 		prrp:    map[PreReadRequestPlugin]bool{},
 		porrp:   map[PostReadRequestPlugin]bool{},
-		php:     map[PreHandlePlugin]bool{},
-		pohp:    map[PostHandlePlugin]bool{},
+		inp:     map[InterceptPlugin]bool{},
 		pwrp:    map[PreWriteResponsePlugin]bool{},
 		powrp:   map[PostWriteResponsePlugin]bool{},
 
@@ -157,26 +153,6 @@ func NewIOPluginContainer() IOContainer {
 	return NewPluginContainer()
 }
 
-//
-//var (
-//	nilPlugins = []reflect.Type{
-//		reflect.TypeOf(Plugin(nil)),
-//		reflect.TypeOf(RegisterServicePlugin(nil)),
-//		reflect.TypeOf(RegisterCustomServicePlugin(nil)),
-//		reflect.TypeOf(RegisterFunctionPlugin(nil)),
-//		reflect.TypeOf(ConnectPlugin(nil)),
-//		reflect.TypeOf(DisconnectPlugin(nil)),
-//		reflect.TypeOf(OpenStreamPlugin(nil)),
-//		reflect.TypeOf(CloseStreamPlugin(nil)),
-//		reflect.TypeOf(PreReadRequestPlugin(nil)),
-//		reflect.TypeOf(PostReadRequestPlugin(nil)),
-//		reflect.TypeOf(PreHandlePlugin(nil)),
-//		reflect.TypeOf(PostHandlePlugin(nil)),
-//		reflect.TypeOf(PreWriteResponsePlugin(nil)),
-//		reflect.TypeOf(PostWriteResponsePlugin(nil)),
-//	}
-//)
-
 // pluginContainer implements PluginContainer interface.
 type pluginContainer struct {
 	plugins map[Plugin]bool
@@ -189,8 +165,7 @@ type pluginContainer struct {
 	csp     map[CloseStreamPlugin]bool
 	prrp    map[PreReadRequestPlugin]bool
 	porrp   map[PostReadRequestPlugin]bool
-	php     map[PreHandlePlugin]bool
-	pohp    map[PostHandlePlugin]bool
+	inp     map[InterceptPlugin]bool
 	pwrp    map[PreWriteResponsePlugin]bool
 	powrp   map[PostWriteResponsePlugin]bool
 
@@ -260,11 +235,8 @@ func (pc *pluginContainer) Add(plugin Plugin) {
 	if p, ok := plugin.(PostReadRequestPlugin); ok {
 		pc.porrp[p] = true
 	}
-	if p, ok := plugin.(PreHandlePlugin); ok {
-		pc.php[p] = true
-	}
-	if p, ok := plugin.(PostHandlePlugin); ok {
-		pc.pohp[p] = true
+	if p, ok := plugin.(InterceptPlugin); ok {
+		pc.inp[p] = true
 	}
 	if p, ok := plugin.(PreWriteResponsePlugin); ok {
 		pc.pwrp[p] = true
@@ -308,11 +280,8 @@ func (pc *pluginContainer) Remove(plugin Plugin) {
 	if p, ok := plugin.(PostReadRequestPlugin); ok {
 		delete(pc.porrp, p)
 	}
-	if p, ok := plugin.(PreHandlePlugin); ok {
-		delete(pc.php, p)
-	}
-	if p, ok := plugin.(PostHandlePlugin); ok {
-		delete(pc.pohp, p)
+	if p, ok := plugin.(InterceptPlugin); ok {
+		delete(pc.inp, p)
 	}
 	if p, ok := plugin.(PreWriteResponsePlugin); ok {
 		delete(pc.pwrp, p)
@@ -421,22 +390,20 @@ func (pc *pluginContainer) DoPostReadRequest(ctx context.Context, r interface{},
 	return err
 }
 
-func (pc *pluginContainer) DoHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
-	for p := range pc.php {
-		ctx, err = p.PreHandle(ctx, req, info)
-		if err != nil {
-			break
+func (pc *pluginContainer) DoIntercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
+	if len(pc.inp) == 0 {
+		return
+	}
+	chain := func(in Interceptor, handler types.UnaryHandler) types.UnaryHandler {
+		return func(ctx context.Context, req interface{}) (resp interface{}, err error) {
+			return in(ctx, req, info, handler)
 		}
 	}
-	resp, err = handler(ctx, req)
-	e := err
-	for p := range pc.pohp {
-		ctx, err = p.PostHandle(ctx, req, resp, info, e)
-		if err != nil {
-			break
-		}
+	chainHandler := handler
+	for in := range pc.inp {
+		chainHandler = chain(in.Intercept, chainHandler)
 	}
-	return resp, err
+	return chainHandler(ctx, req)
 }
 
 func (pc *pluginContainer) DoPreWriteResponse(ctx context.Context, data []byte) ([]byte, error) {

@@ -230,7 +230,7 @@ func (s *Server) processStream(ctx context.Context, stream types.ServerStream, h
 		}
 		for {
 			newCtx = ctx
-			reply, err := s.RpcCall(newCtx, service, method, dec, s.pc.DoHandle)
+			reply, err := s.RpcCall(newCtx, service, method, dec, s.pc.DoIntercept)
 			if err != nil {
 				break
 			}
@@ -257,7 +257,7 @@ func (s *Server) processStream(ctx context.Context, stream types.ServerStream, h
 	}
 	for {
 		newCtx = ctx
-		reply, err := desc.Handler(srv, newCtx, dec, s.pc.DoHandle)
+		reply, err := desc.Handler(srv, newCtx, dec, s.pc.DoIntercept)
 		if err != nil {
 			break
 		}

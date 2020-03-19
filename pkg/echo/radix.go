@@ -183,7 +183,7 @@ func (t *Tree) Insert(s string, v interface{}) (interface{}, bool) {
 	n := t.root
 	search := s
 	for {
-		// Handle key exhaution
+		// Intercept key exhaution
 		if len(search) == 0 {
 			if n.isLeaf() {
 				old := n.leaf.val

@@ -3,7 +3,6 @@ package trace
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 
 	"x.io/xrpc"
@@ -29,8 +28,13 @@ func init() {
 	c = registerJaeger()
 }
 
-func New() *tracePlugin {
+func New(isServer ...bool) *tracePlugin {
+	server := true
+	if len(isServer) > 0 {
+		server = isServer[0]
+	}
 	t := &tracePlugin{
+		server:     server,
 		tracer:     opentracing.GlobalTracer(),
 		otgrpcOpts: newOptions(),
 	}
@@ -38,11 +42,13 @@ func New() *tracePlugin {
 }
 
 type tracePlugin struct {
+	server bool
+
 	tracer     opentracing.Tracer
 	otgrpcOpts *options
 }
 
-func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *types.UnaryServerInfo) (context.Context, error) {
+func (t *tracePlugin) Intercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
 	spanContext, err := t.tracer.Extract(opentracing.TextMap, NewSpanCtxReader(ctx))
 	var span opentracing.Span
 	if err != nil {
@@ -74,27 +80,21 @@ func (t *tracePlugin) PreHandle(ctx context.Context, req interface{}, info *type
 	for k, v := range w.M {
 		ctx = xrpc.SetCookie(ctx, k, v)
 	}
-	return ctx, nil
-}
 
-func (t *tracePlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, err error) (context.Context, error) {
-	serverSpan, ok := ctx.Value(SpanKey).(opentracing.Span)
-	if !ok {
-		return ctx, errors.New("trace plugin get server_span failed")
-	}
-	defer serverSpan.Finish()
-	SetSpanTags(serverSpan, err, false)
+	resp, err = handler(ctx, req)
+
+	SetSpanTags(span, err, t.server)
 	if err == nil {
 		if t.otgrpcOpts.logPayloads {
-			serverSpan.LogFields(log.Object("xrpc response", resp))
+			span.LogFields(log.Object("xrpc response", resp))
 		}
 	} else {
-		serverSpan.LogFields(log.String("event", "error"), log.String("message", err.Error()))
+		span.LogFields(log.String("event", "error"), log.String("message", err.Error()))
 	}
 	if t.otgrpcOpts.decorator != nil {
-		t.otgrpcOpts.decorator(serverSpan, info.FullMethod, req, resp, err)
+		t.otgrpcOpts.decorator(span, info.FullMethod, req, resp, err)
 	}
-	return ctx, nil
+	return resp, err
 }
 
 func (t *tracePlugin) Stop() error {
@@ -149,13 +149,13 @@ func (m *SpanCtxWriter) String() string {
 }
 
 // SetSpanTags sets one or more tags on the given span according to the error.
-func SetSpanTags(span opentracing.Span, err error, client bool) {
+func SetSpanTags(span opentracing.Span, err error, server bool) {
 	code := codes.ErrorCode(err)
 	span.SetTag("response_code", code)
 	if err == nil {
 		return
 	}
-	if client || code == codes.ServerError {
+	if !server || code == codes.ServerError {
 		ext.Error.Set(span, true)
 	}
 }

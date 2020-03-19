@@ -4,6 +4,7 @@ A Simple RPC Framework
 ## Requirements
 - 支持proto3(定制proto-gen-go)和go interface(基于go ast解析)生成桩代码，或者直接使用函数地址Call(reflect实现)，入参和返回值都是[]byte
 - 传输类型(tcp, kcp, ws, quic) x (tls, multiple stream)
+- 服务注册(consul/chord dht)
 - 插件系统
   - jaeger分布式链路追踪
   - prometheus监控上报
@@ -12,10 +13,13 @@ A Simple RPC Framework
   - 连接认证
   - 加密数据
   - 服务注册
+  - 限流
 
 ## TODO
-- p2p服务发现(基于chord协议)
-- 多语言客户端(本地tcp连client agent->server)，主要是要修改对应的proto-gen-xxx
+- proxy 不同协议转发
+- 连接超时优雅关闭，自动重连, 连接池
+- 统一协议头
+- 同步和异步请求
 
 ## Example
 ### 直接使用接口定义MathService

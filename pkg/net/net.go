@@ -13,6 +13,7 @@ type IPNet = net.IPNet
 const (
 	TCP  Network = "tcp"
 	UDP          = "udp"
+	UNIX         = "unix"
 	QUIC         = "quic"
 	WS           = "ws"
 	KCP          = "kcp"

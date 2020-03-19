@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/json-iterator/go v1.1.9
 	github.com/juju/ratelimit v1.0.1
+	github.com/julienschmidt/httprouter v1.2.0
 	github.com/klauspost/cpuid v1.2.2 // indirect
 	github.com/klauspost/reedsolomon v1.9.3 // indirect
 	github.com/kr/pretty v0.1.0 // indirect

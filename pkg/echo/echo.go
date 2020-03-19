@@ -28,7 +28,7 @@ type (
 		Render(io.Writer, string, interface{}, Context) error
 	}
 	Router interface {
-		HandleFunc(path string, handler Handler)
+		HandleFunc(path string, handler Handler, ms ...HttpMethod)
 		GET(path string, handler Handler)
 		POST(path string, handler Handler)
 		DELETE(path string, handler Handler)
@@ -145,8 +145,11 @@ func (g *Group) TRACE(path string, handler Handler) {
 	g.r.TRACE(path, handler)
 }
 
-func (e *Echo) HandleFunc(path string, handler Handler) {
-	for _, method := range SupportedMethods {
+func (e *Echo) HandleFunc(path string, handler Handler, ms ...HttpMethod) {
+	if len(ms) == 0 {
+		ms = SupportedMethods
+	}
+	for _, method := range ms {
 		e.trees[method].Insert(path, handler)
 	}
 }

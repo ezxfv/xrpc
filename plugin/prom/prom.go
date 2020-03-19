@@ -2,7 +2,6 @@ package prom
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -51,19 +50,11 @@ func (p *promPlugin) Collect(cs ...prometheus.Collector) {
 	}
 }
 
-func (p *promPlugin) PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error) {
+func (p *promPlugin) Intercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
 	reporter := newDefaultReporter(p.metrics, "unary", info.FullMethod)
-	ctx = context.WithValue(ctx, "reporter", reporter)
-	return ctx, nil
-}
-
-func (p *promPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error) {
-	r, ok := ctx.Value("reporter").(*defaultReporter)
-	if !ok {
-		return ctx, errors.New("prom plugin PostHandle get reporter from ctx failed")
-	}
-	r.Handled(codes.ErrorClass(e))
-	return ctx, nil
+	resp, err = handler(ctx, req)
+	reporter.Handled(codes.ErrorClass(err))
+	return resp, err
 }
 
 // Start 在指定地址上开启prometheus http，未提供Gatherer的情况下使用默认Gatherer

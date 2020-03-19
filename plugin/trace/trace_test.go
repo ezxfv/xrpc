@@ -128,11 +128,12 @@ func TestTracePlugin(t *testing.T) {
 		}
 
 		info := &types.UnaryServerInfo{FullMethod: "test_trace_plugin"}
-		ctx, err := p.PreHandle(ctx, nil, info)
-		time.Sleep(time.Millisecond * 200)
-		p.PostHandle(ctx, nil, nil, info, err)
+		p.Intercept(ctx, nil, info, func(ctx context.Context, req interface{}) (interface{}, error) {
+			time.Sleep(time.Millisecond * 200)
+			return nil, nil
+		})
 		span.Finish()
 	}
 	// 需要delay刷新数据，或者手动Close刷掉缓存
-	time.Sleep(time.Second)
+	p.Stop()
 }

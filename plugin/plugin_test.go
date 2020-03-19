@@ -28,6 +28,10 @@ func TestLogPlugin(t *testing.T) {
 	)
 	pc.Add(logPlugin)
 	pc.DoPreWriteResponse(nil, nil)
+	pc.DoIntercept(nil, nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
+		println("test interceptor")
+		return nil, nil
+	})
 	pc.Remove(logPlugin)
 	println()
 }
@@ -48,6 +52,6 @@ func TestPromPlugin(t *testing.T) {
 		return nil, nil
 	}
 	for i := 0; i < 100; i++ {
-		pc.DoHandle(ctx, nil, info, handler)
+		pc.DoIntercept(ctx, nil, info, handler)
 	}
 }

@@ -87,14 +87,9 @@ func (p *logPlugin) PostReadRequest(ctx context.Context, r interface{}, e error)
 	return nil
 }
 
-func (p *logPlugin) PreHandle(ctx context.Context, r interface{}, info *types.UnaryServerInfo) (context.Context, error) {
-	p.l.Debugf("PreHandle\n")
-	return ctx, nil
-}
-
-func (p *logPlugin) PostHandle(ctx context.Context, req interface{}, resp interface{}, info *types.UnaryServerInfo, e error) (context.Context, error) {
-	p.l.Debugf("PostHandle\n")
-	return ctx, nil
+func (p *logPlugin) Intercept(ctx context.Context, req interface{}, info *types.UnaryServerInfo, handler types.UnaryHandler) (resp interface{}, err error) {
+	p.l.Debugf("Intercept\n")
+	return handler(ctx, req)
 }
 
 func (p *logPlugin) PreWriteResponse(ctx context.Context, data []byte) ([]byte, error) {
