@@ -11,6 +11,7 @@ import (
 
 	"x.io/xrpc/pkg/encoding"
 	"x.io/xrpc/pkg/net"
+	"x.io/xrpc/pkg/transport"
 	"x.io/xrpc/plugin"
 	"x.io/xrpc/types"
 
@@ -21,7 +22,8 @@ type clientStream struct {
 	ctx context.Context
 
 	stream net.Conn
-	header *streamHeader
+	t      transport.Transport
+	header *types.StreamHeader
 	codec  encoding.Codec
 	cp     encoding.Compressor
 
@@ -37,11 +39,16 @@ func (cs *clientStream) Context() context.Context {
 }
 
 func (cs *clientStream) SendMsg(ctx context.Context, m interface{}) error {
+	if cs.t != nil {
+		// 通过transporter发送
+		return cs.t.SendMsg(ctx, m)
+	}
+
 	data, err := cs.codec.Marshal(m)
 	if err != nil {
 		return err
 	}
-	cookies := CookiesHeader(ctx)
+	cookies := types.CookiesHeader(ctx)
 	data = append(cookies, data...)
 
 	var compData []byte = nil
@@ -64,7 +71,8 @@ func (cs *clientStream) SendMsg(ctx context.Context, m interface{}) error {
 	if data, err = cs.pioc.DoPreWriteResponse(ctx, data); err != nil {
 		return err
 	}
-	hdr := msgHeader(data, comp)
+	hdr := types.MsgHeader(data, comp)
+
 	if _, err = cs.stream.Write(hdr); err != nil {
 		return err
 	}
@@ -74,13 +82,13 @@ func (cs *clientStream) SendMsg(ctx context.Context, m interface{}) error {
 	return nil
 }
 
-func recv(conn io.Reader) (pf payloadFormat, msg []byte, err error) {
-	header := make([]byte, headerLen, headerLen)
+func recv(conn io.Reader) (pf types.PayloadFormat, msg []byte, err error) {
+	header := make([]byte, types.HeaderLen, types.HeaderLen)
 	if _, err := conn.Read(header[:]); err != nil {
 		return 0, nil, err
 	}
 
-	pf = payloadFormat(header[0])
+	pf = types.PayloadFormat(header[0])
 	length := binary.BigEndian.Uint32(header[1:])
 
 	if length == 0 {
@@ -97,6 +105,10 @@ func recv(conn io.Reader) (pf payloadFormat, msg []byte, err error) {
 }
 
 func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Context, error) {
+	if cs.t != nil {
+		// 通过transporter接收
+		return cs.t.RecvMsg(ctx, m)
+	}
 	pf, msg, err := recv(cs.stream)
 	if err != nil {
 		return ctx, err
@@ -105,7 +117,7 @@ func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 		return ctx, err
 	}
 	var data []byte
-	if pf == compressionMade {
+	if pf == types.CompressionMade {
 		dc, _ := cs.cp.Decompress(bytes.NewReader(msg))
 		data, err = ioutil.ReadAll(dc)
 		if err != nil {
@@ -114,7 +126,7 @@ func (cs *clientStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 	} else {
 		data = msg
 	}
-	ctx, l := ReadCookiesHeader(ctx, data)
+	ctx, l := types.ReadCookiesHeader(ctx, data)
 	if err = cs.codec.Unmarshal(data[l:], m); err != nil {
 		return ctx, errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message %v", err))
 	}
@@ -145,7 +157,8 @@ type serverStream struct {
 	ctx context.Context
 
 	stream net.Conn
-	header *streamHeader
+	t      transport.Transport
+	header *types.StreamHeader
 
 	codec encoding.Codec
 	cp    encoding.Compressor
@@ -166,11 +179,15 @@ func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) 
 		// DoPostWriteResponse
 		err = ss.sc.DoPostWriteResponse(ctx, nil, m, err)
 	}()
+	if ss.t != nil {
+		// 通过transporter发送
+		return ss.t.SendMsg(ctx, m)
+	}
 	data, err := ss.codec.Marshal(m)
 	if err != nil {
 		return err
 	}
-	cookies := CookiesHeader(ctx)
+	cookies := types.CookiesHeader(ctx)
 	data = append(cookies, data...)
 	var compData []byte = nil
 	cbuf := &bytes.Buffer{}
@@ -193,7 +210,7 @@ func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) 
 	if data, err = ss.sc.DoPreWriteResponse(ctx, data); err != nil {
 		return err
 	}
-	hdr := msgHeader(data, comp)
+	hdr := types.MsgHeader(data, comp)
 	if _, err = ss.stream.Write(hdr); err != nil {
 		return err
 	}
@@ -204,6 +221,10 @@ func (ss *serverStream) SendMsg(ctx context.Context, m interface{}) (err error) 
 }
 
 func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Context, error) {
+	if ss.t != nil {
+		// 通过transporter接收
+		return ss.t.RecvMsg(ctx, m)
+	}
 	pf, msg, err := recv(ss.stream)
 	if err != nil {
 		return ctx, err
@@ -213,7 +234,7 @@ func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 		return ctx, err
 	}
 	var data []byte
-	if pf == compressionMade {
+	if pf == types.CompressionMade {
 		dc, _ := ss.cp.Decompress(bytes.NewReader(msg))
 		if dc == nil {
 			return ctx, errors.New("decompress failed")
@@ -225,7 +246,7 @@ func (ss *serverStream) RecvMsg(ctx context.Context, m interface{}) (context.Con
 	} else {
 		data = msg
 	}
-	ctx, l := ReadCookiesHeader(ctx, data)
+	ctx, l := types.ReadCookiesHeader(ctx, data)
 	if err = ss.codec.Unmarshal(data[l:], m); err != nil {
 		err = errors.New(fmt.Sprintf("xrpc: failed to unmarshal the received message for %v", err))
 	}

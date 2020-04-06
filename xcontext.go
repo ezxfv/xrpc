@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"x.io/xrpc/types"
 )
 
 func XBackground() *XContext {
@@ -41,7 +43,7 @@ func (xctx *XContext) Value(key interface{}) interface{} {
 
 func (xctx *XContext) Context() context.Context {
 	ctx := context.Background()
-	ctx = SetCookies(ctx, xctx.cookies)
+	ctx = types.SetCookies(ctx, xctx.cookies)
 	for k, v := range xctx.values {
 		ctx = context.WithValue(ctx, k, v)
 	}
@@ -50,7 +52,7 @@ func (xctx *XContext) Context() context.Context {
 
 func (xctx *XContext) SetCtx(ctx context.Context) {
 	xctx.ctx = ctx
-	xctx.cookies = FetchCookies(ctx)
+	xctx.cookies = types.FetchCookies(ctx)
 }
 
 func (xctx *XContext) WithValue(key, value interface{}) {
@@ -60,14 +62,14 @@ func (xctx *XContext) WithValue(key, value interface{}) {
 
 func (xctx *XContext) SetCookie(key, value string) {
 	xctx.cookies[key] = value
-	xctx.ctx = SetCookie(xctx.ctx, key, value)
+	xctx.ctx = types.SetCookie(xctx.ctx, key, value)
 }
 
 func (xctx *XContext) Cookie(key string) (cookie string) {
 	if cookie, ok := xctx.cookies[key]; ok {
 		return cookie
 	}
-	return GetCookie(xctx.ctx, key)
+	return types.GetCookie(xctx.ctx, key)
 }
 
 func (xctx *XContext) MarshalJSON() ([]byte, error) {
@@ -83,7 +85,7 @@ func (xctx *XContext) UnmarshalJSON(data []byte) (err error) {
 	err = json.Unmarshal(data, &m)
 	if cookies, ok := m["cookies"]; ok {
 		xctx.cookies = cookies.(map[string]string)
-		xctx.ctx = SetCookies(context.Background(), xctx.cookies)
+		xctx.ctx = types.SetCookies(context.Background(), xctx.cookies)
 	}
 	if values, ok := m["values"]; ok {
 		xctx.values = values.(map[interface{}]interface{})

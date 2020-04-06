@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 
-	"x.io/xrpc"
 	"x.io/xrpc/pkg/codes"
 	"x.io/xrpc/types"
 
@@ -78,7 +77,7 @@ func (t *tracePlugin) Intercept(ctx context.Context, req interface{}, info *type
 		return ctx, err
 	}
 	for k, v := range w.M {
-		ctx = xrpc.SetCookie(ctx, k, v)
+		ctx = types.SetCookie(ctx, k, v)
 	}
 
 	resp, err = handler(ctx, req)
@@ -121,7 +120,7 @@ func (m *SpanCtxReader) ForeachKey(handler func(key, val string) error) (err err
 				vv = sv
 			}
 		} else {
-			vv = xrpc.GetCookie(m.ctx, k)
+			vv = types.GetCookie(m.ctx, k)
 		}
 		err = handler(k, vv)
 		if err != nil {

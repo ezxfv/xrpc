@@ -39,11 +39,11 @@ func Dial(network net.Network, addr string, opts ...DialOption) (cc *ClientConn,
 	if err != nil {
 		return
 	}
-	n, err := conn.Write([]byte(Preface))
+	n, err := conn.Write([]byte(types.Preface))
 	if err != nil {
 		return
 	}
-	if n != len(Preface) {
+	if n != len(types.Preface) {
 		return nil, errors.New("wrote Preface length isn't match")
 	}
 	dopts := &dialOptions{
@@ -89,13 +89,13 @@ func (rc *RawClient) RawCall(ctx context.Context, method string, reply interface
 		return errors.New("method name should be: xxx.xxx")
 	}
 	fullMethod := fmt.Sprintf("/%s.%s/%s", customPrefix, arr[0], arr[1])
-	cs, err := rc.cc.NewStream(ctx, RawRPC, nil, fullMethod)
+	cs, err := rc.cc.NewStream(ctx, types.RawRPC, nil, fullMethod)
 	if err != nil {
 		return
 	}
 	for k, v := range rc.cc.args {
 		if vv, ok := v.(string); ok {
-			ctx = SetCookie(ctx, k, vv)
+			ctx = types.SetCookie(ctx, k, vv)
 		}
 	}
 	if err = cs.SendMsg(ctx, &args); err != nil {
@@ -125,7 +125,7 @@ func genStreamKey(network net.Network, addr string, method string) string {
 	return fmt.Sprintf("%s://%s%s", network, addr, method)
 }
 
-func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *types.StreamDesc, method string, opts ...CallOption) (cs types.ClientStream, err error) {
+func (cc *ClientConn) NewStream(ctx context.Context, rpc types.Rpc, desc *types.StreamDesc, method string, opts ...CallOption) (cs types.ClientStream, err error) {
 	var stream net.Conn
 	var ok bool
 	streamKey := genStreamKey(cc.protocol, cc.session.RemoteAddr().String(), method)
@@ -158,8 +158,8 @@ func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *types.Stream
 	for k, v := range cc.args {
 		args[k] = v
 	}
-	header := &streamHeader{
-		Cmd:        Init,
+	header := &types.streamHeader{
+		Cmd:        types.Init,
 		FullMethod: method,
 		RpcType:    rpc,
 		Args:       args,
@@ -168,8 +168,8 @@ func (cc *ClientConn) NewStream(ctx context.Context, rpc Rpc, desc *types.Stream
 	if err != nil {
 		return nil, err
 	}
-	hdr := msgHeader(headerJson, false)
-	hdr[0] = byte(cmdHeader)
+	hdr := types.msgHeader(headerJson, false)
+	hdr[0] = byte(types.cmdHeader)
 	if _, err = stream.Write(hdr); err != nil {
 		return nil, err
 	}
@@ -201,13 +201,13 @@ func (cc *ClientConn) Addr() string {
 }
 
 func invoke(ctx context.Context, method string, req, reply interface{}, cc *ClientConn, opts ...CallOption) (err error) {
-	cs, err := cc.NewStream(ctx, XRPC, nil, method, opts...)
+	cs, err := cc.NewStream(ctx, types.XRPC, nil, method, opts...)
 	if err != nil {
 		return
 	}
 	for k, v := range cc.args {
 		if vv, ok := v.(string); ok {
-			ctx = SetCookie(ctx, k, vv)
+			ctx = types.SetCookie(ctx, k, vv)
 		}
 	}
 	if err := cs.SendMsg(ctx, req); err != nil {

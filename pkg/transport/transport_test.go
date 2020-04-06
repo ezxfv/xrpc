@@ -74,6 +74,7 @@ func TestHttp2Server(t *testing.T) {
 func TestHttp2Client(t *testing.T) {
 	transport := http2.Transport{
 		TLSClientConfig: config,
+		AllowHTTP:       true,
 		DialTLS: func(network, adr string, cfg *tls.Config) (net.Conn, error) {
 			conn, err := net.Dial(nil, protocol, addr)
 			if err != nil {

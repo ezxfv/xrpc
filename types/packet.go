@@ -1,4 +1,4 @@
-package xrpc
+package types
 
 import (
 	"context"

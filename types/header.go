@@ -1,11 +1,11 @@
-package xrpc
+package types
 
 import (
 	"encoding/binary"
 	"strings"
 )
 
-type payloadFormat uint8
+type PayloadFormat uint8
 type HeaderCmd string
 type Rpc int
 
@@ -13,12 +13,12 @@ const (
 	payloadLen = 1
 	cookieLen  = 4
 	sizeLen    = 4
-	headerLen  = payloadLen + sizeLen
+	HeaderLen  = payloadLen + sizeLen
 
-	compressionNone payloadFormat = iota // no compression
-	compressionMade                      // compressed
+	compressionNone PayloadFormat = iota // no compression
+	CompressionMade                      // compressed
 	metaHeader
-	cmdHeader
+	CmdHeader
 
 	Init    HeaderCmd = "init"
 	Close   HeaderCmd = "close"
@@ -30,7 +30,7 @@ const (
 	RawRPC Rpc = 1
 )
 
-type streamHeader struct {
+type StreamHeader struct {
 	FullMethod string
 	Cmd        HeaderCmd
 	RpcType    Rpc
@@ -38,7 +38,7 @@ type streamHeader struct {
 	Payload    []byte
 }
 
-func (sh *streamHeader) splitMethod() (service, method string) {
+func (sh *StreamHeader) SplitMethod() (service, method string) {
 	arr := strings.Split(sh.FullMethod, "/")
 	if len(arr) != 3 {
 		return
@@ -48,7 +48,7 @@ func (sh *streamHeader) splitMethod() (service, method string) {
 	return
 }
 
-func getCodecArg(header *streamHeader) string {
+func GetCodecArg(header *StreamHeader) string {
 	c, ok := header.Args["codec"]
 	if !ok {
 		return "proto"
@@ -56,7 +56,7 @@ func getCodecArg(header *streamHeader) string {
 	return c.(string)
 }
 
-func getCompressorArg(header *streamHeader) string {
+func GetCompressorArg(header *StreamHeader) string {
 	c, ok := header.Args["compressor"]
 	if !ok {
 		return "gzip"
@@ -66,10 +66,10 @@ func getCompressorArg(header *streamHeader) string {
 
 // msgHeader returns a 5-byte header for the message being transmitted and the
 // payload, which is compData if non-nil or data otherwise.
-func msgHeader(data []byte, comp bool) (hdr []byte) {
-	hdr = make([]byte, headerLen)
+func MsgHeader(data []byte, comp bool) (hdr []byte) {
+	hdr = make([]byte, HeaderLen)
 	if comp {
-		hdr[0] = byte(compressionMade)
+		hdr[0] = byte(CompressionMade)
 	} else {
 		hdr[0] = byte(compressionNone)
 	}

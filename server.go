@@ -144,9 +144,9 @@ func (s *Server) listen(lis net.Listener) (e error) {
 			e = err
 			break
 		}
-		p := make([]byte, len(Preface))
+		p := make([]byte, len(types.Preface))
 		n, err := conn.Read(p)
-		if err != nil || n != len(Preface) {
+		if err != nil || n != len(types.Preface) {
 			continue
 		}
 		session, err := smux.Server(conn, nil)
@@ -177,8 +177,8 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 		if err != nil {
 			return
 		}
-		if pf == cmdHeader {
-			header := &streamHeader{}
+		if pf == types.CmdHeader {
+			header := &types.StreamHeader{}
 			err = json.Unmarshal(data, header)
 			if err != nil {
 				continue
@@ -190,8 +190,8 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 			}
 			ss := &serverStream{
 				stream: &streamConn{stream},
-				codec:  encoding.GetCodec(getCodecArg(header)),
-				cp:     encoding.GetCompressor(getCompressorArg(header)),
+				codec:  encoding.GetCodec(types.GetCodecArg(header)),
+				cp:     encoding.GetCompressor(types.GetCompressorArg(header)),
 				sc:     s.pc,
 				header: header,
 			}
@@ -204,7 +204,7 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 
 			for k, v := range header.Args {
 				if vv, ok := v.(string); ok {
-					ctx = SetCookie(ctx, k, vv)
+					ctx = types.SetCookie(ctx, k, vv)
 				}
 			}
 			go s.processStream(ctx, ss, header)
@@ -214,13 +214,13 @@ func (s *Server) handleSession(conn net.Conn, session *smux.Session) {
 	s.pc.DoDisconnect(conn)
 }
 
-func (s *Server) processStream(ctx context.Context, stream types.ServerStream, header *streamHeader) {
+func (s *Server) processStream(ctx context.Context, stream types.ServerStream, header *types.StreamHeader) {
 	defer s.pc.DoCloseStream(ctx, stream.(*serverStream).stream)
-	service, method := header.splitMethod()
+	service, method := header.SplitMethod()
 	if service == "" || method == "" {
 		return
 	}
-	if header.RpcType == RawRPC {
+	if header.RpcType == types.RawRPC {
 		// RawRPC
 		var newCtx context.Context
 
