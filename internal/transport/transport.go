@@ -36,8 +36,8 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
+	"x.io/xrpc/pkg/status"
 )
 
 type bufferPool struct {

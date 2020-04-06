@@ -37,11 +37,11 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/hpack"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"x.io/xrpc/internal/grpctest"
 	"x.io/xrpc/internal/leakcheck"
 	"x.io/xrpc/internal/testutils"
+	"x.io/xrpc/pkg/status"
 )
 
 func TestUsable(t *testing.T) {

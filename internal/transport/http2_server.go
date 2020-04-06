@@ -43,11 +43,12 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
+
 	"x.io/xrpc/internal"
 	"x.io/xrpc/internal/channelz"
 	"x.io/xrpc/internal/grpcrand"
+	"x.io/xrpc/pkg/status"
 )
 
 var (

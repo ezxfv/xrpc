@@ -36,7 +36,7 @@ import (
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
+	"x.io/xrpc/pkg/status"
 )
 
 func (s) TestHandlerTransport_NewServerHandlerTransport(t *testing.T) {

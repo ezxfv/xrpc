@@ -42,7 +42,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
+	"x.io/xrpc/pkg/status"
 )
 
 // NewServerHandlerTransport returns a ServerTransport handling gRPC

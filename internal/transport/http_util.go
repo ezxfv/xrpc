@@ -37,7 +37,7 @@ import (
 	"golang.org/x/net/http2/hpack"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"x.io/xrpc/pkg/status"
 )
 
 const (
